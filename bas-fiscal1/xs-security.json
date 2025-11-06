@@ -1,0 +1,25 @@
+{
+  "xsappname": "cap-fiscal-core",
+  "tenant-mode": "dedicated",
+  "oauth2-configuration": {
+    "credential-types": ["binding-secret"],
+    "grant-types": ["client_credentials"]
+  },
+  "scopes": [
+    { "name": "$XSAPPNAME.User", "description": "Default user scope" },
+    {
+      "name": "$XSAPPNAME.emcallback",
+      "description": "Event Mesh Callback Access",
+      "grant-as-authority-to-apps": [
+        "$XSSERVICENAME(event_mesh)"
+      ]
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "User",
+      "description": "Default user role",
+      "scope-references": [ "$XSAPPNAME.User" ]
+    }
+  ]
+}

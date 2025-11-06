@@ -1,0 +1,48 @@
+{
+  "VCAP_SERVICES": {
+    "enterprise-messaging": [
+      {
+        "name": "em_core",
+        "label": "enterprise-messaging",
+        "plan": "default",
+        "credentials": {
+          "namespace": "itelis/fiscal/test",
+
+          "management": [
+            {
+              "oa2": {
+                "clientid": "sb-default-5cd66eb0-8f35-4919-a004-f55d455a7518-clone!b505889|xbem-service-broker-!b2436",
+                "clientsecret": "99af63d0-69f6-4a9c-b534-aa30981b58ac$hQProSmBwA4yuiPITVeciknBu063eq6PBCbDr-_d3PQ=",
+                "tokenendpoint": "https://itelis-test-4vi9dhwp.authentication.eu10.hana.ondemand.com/oauth/token",
+                "granttype": "client_credentials"
+              },
+              "uri": "https://enterprise-messaging-hub-backend.cfapps.eu10.hana.ondemand.com"
+            }
+          ],
+
+          "messaging": [
+            {
+              "oa2": {
+                "clientid": "sb-default-5cd66eb0-8f35-4919-a004-f55d455a7518-clone!b505889|xbem-service-broker-!b2436",
+                "clientsecret": "99af63d0-69f6-4a9c-b534-aa30981b58ac$hQProSmBwA4yuiPITVeciknBu063eq6PBCbDr-_d3PQ=",
+                "tokenendpoint": "https://itelis-test-4vi9dhwp.authentication.eu10.hana.ondemand.com/oauth/token",
+                "granttype": "client_credentials"
+              },
+              "protocol": ["amqp10ws"],
+              "broker": { "type": "sapmgw" },
+              "uri": "wss://enterprise-messaging-messaging-gateway.cfapps.eu10.hana.ondemand.com/protocols/amqp10ws"
+            }
+          ],
+
+          "uaa": {
+            "clientid": "sb-default-5cd66eb0-8f35-4919-a004-f55d455a7518-clone!b505889|xbem-service-broker-!b2436",
+            "clientsecret": "99af63d0-69f6-4a9c-b534-aa30981b58ac$hQProSmBwA4yuiPITVeciknBu063eq6PBCbDr-_d3PQ=",
+            "url": "https://itelis-test-4vi9dhwp.authentication.eu10.hana.ondemand.com",
+            "xsappname": "default-5cd66eb0-8f35-4919-a004-f55d455a7518-clone!b505889|xbem-service-broker-!b2436",
+            "credential-type": "binding-secret"
+          }
+        }
+      }
+    ]
+  }
+}

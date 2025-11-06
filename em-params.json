@@ -1,0 +1,35 @@
+{
+  "version": "1.1.0",
+  "resources": { "units": "10" },
+  "options": {
+    "management": true,
+    "messagingrest": true,
+    "messaging": true
+  },
+  "emname": "default",
+  "namespace": "itelis/fiscal/test",
+  "authorities": ["$ACCEPT_GRANTED_AUTHORITIES"],
+  "xs-security": {
+    "oauth2-configuration": {
+      "credential-types": ["binding-secret", "x509"]
+    }
+  },
+  "rules": {
+    "topicRules": {
+      "publishFilter": [
+        "${namespace}/*"
+      ],
+      "subscribeFilter": [
+        "${namespace}/*"
+      ]
+    },
+    "queueRules": {
+      "publishFilter": [
+        "${namespace}/*"
+      ],
+      "subscribeFilter": [
+        "${namespace}/*"
+      ]
+    }
+  }
+}

@@ -1,0 +1,429 @@
+{
+  "namespace": "fisc",
+  "definitions": {
+    "fisc.Invoice": {
+      "kind": "entity",
+      "elements": {
+        "InvoiceId": {
+          "key": true,
+          "type": "cds.String",
+          "length": 40
+        },
+        "TaxNumber": {
+          "type": "cds.String",
+          "length": 15
+        },
+        "IssueDateTime": {
+          "type": "cds.Timestamp"
+        },
+        "Amount": {
+          "type": "cds.Decimal",
+          "precision": 15,
+          "scale": 2
+        },
+        "PremiseId": {
+          "type": "cds.String",
+          "length": 10
+        },
+        "DeviceId": {
+          "type": "cds.String",
+          "length": 10
+        },
+        "ZOI": {
+          "type": "cds.String",
+          "length": 32
+        },
+        "Status": {
+          "type": "cds.String",
+          "length": 12
+        },
+        "CorrelationID": {
+          "type": "cds.String",
+          "length": 64
+        },
+        "IdempotencyKey": {
+          "type": "cds.String",
+          "length": 128
+        },
+        "CreatedAt": {
+          "@cds.on.insert": {
+            "=": "$now"
+          },
+          "type": "cds.Timestamp"
+        },
+        "UpdatedAt": {
+          "@cds.on.update": {
+            "=": "$now"
+          },
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "fisc.Response": {
+      "kind": "entity",
+      "elements": {
+        "InvoiceId_InvoiceId": {
+          "key": true,
+          "type": "cds.Association",
+          "target": "fisc.Invoice",
+          "keys": [
+            {
+              "ref": [
+                "InvoiceId"
+              ]
+            }
+          ]
+        },
+        "EOR": {
+          "type": "cds.String",
+          "length": 64
+        },
+        "ReceivedAt": {
+          "type": "cds.Timestamp"
+        },
+        "RawPayload": {
+          "type": "cds.LargeString"
+        }
+      }
+    },
+    "fisc.ErrorLog": {
+      "kind": "entity",
+      "elements": {
+        "InvoiceId_InvoiceId": {
+          "key": true,
+          "type": "cds.Association",
+          "target": "fisc.Invoice",
+          "keys": [
+            {
+              "ref": [
+                "InvoiceId"
+              ]
+            }
+          ]
+        },
+        "Code": {
+          "type": "cds.String",
+          "length": 40
+        },
+        "Message": {
+          "type": "cds.LargeString"
+        },
+        "RetryCount": {
+          "type": "cds.Integer"
+        },
+        "LastTriedAt": {
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "fisc.fisc_EventPayload": {
+      "kind": "type",
+      "elements": {
+        "invoiceId": {
+          "type": "cds.String",
+          "length": 40
+        },
+        "taxNumber": {
+          "type": "cds.String",
+          "length": 15
+        },
+        "amount": {
+          "type": "cds.Decimal",
+          "precision": 15,
+          "scale": 2
+        },
+        "timestamp": {
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "fisc.EorAck": {
+      "kind": "type",
+      "elements": {
+        "invoiceId": {
+          "type": "cds.String",
+          "length": 40
+        },
+        "eor": {
+          "type": "cds.String",
+          "length": 64
+        },
+        "receivedAt": {
+          "type": "cds.Timestamp"
+        },
+        "rawResponse": {
+          "type": "cds.LargeString"
+        }
+      }
+    },
+    "fisc.FiscalizationService": {
+      "@source": "srv/fiscal.cds",
+      "kind": "service",
+      "@path": "fiscalization"
+    },
+    "fisc.FiscalizationService.Invoices": {
+      "kind": "entity",
+      "projection": {
+        "from": {
+          "ref": [
+            "fisc.Invoice"
+          ]
+        }
+      },
+      "elements": {
+        "InvoiceId": {
+          "key": true,
+          "type": "cds.String",
+          "length": 40
+        },
+        "TaxNumber": {
+          "type": "cds.String",
+          "length": 15
+        },
+        "IssueDateTime": {
+          "type": "cds.Timestamp"
+        },
+        "Amount": {
+          "type": "cds.Decimal",
+          "precision": 15,
+          "scale": 2
+        },
+        "PremiseId": {
+          "type": "cds.String",
+          "length": 10
+        },
+        "DeviceId": {
+          "type": "cds.String",
+          "length": 10
+        },
+        "ZOI": {
+          "type": "cds.String",
+          "length": 32
+        },
+        "Status": {
+          "type": "cds.String",
+          "length": 12
+        },
+        "CorrelationID": {
+          "type": "cds.String",
+          "length": 64
+        },
+        "IdempotencyKey": {
+          "type": "cds.String",
+          "length": 128
+        },
+        "CreatedAt": {
+          "@cds.on.insert": {
+            "=": "$now"
+          },
+          "type": "cds.Timestamp"
+        },
+        "UpdatedAt": {
+          "@cds.on.update": {
+            "=": "$now"
+          },
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "fisc.FiscalizationService.Responses": {
+      "kind": "entity",
+      "projection": {
+        "from": {
+          "ref": [
+            "fisc.Response"
+          ]
+        }
+      },
+      "elements": {
+        "InvoiceId_InvoiceId": {
+          "key": true,
+          "type": "cds.Association",
+          "target": "fisc.FiscalizationService.Invoices",
+          "keys": [
+            {
+              "ref": [
+                "InvoiceId"
+              ]
+            }
+          ]
+        },
+        "EOR": {
+          "type": "cds.String",
+          "length": 64
+        },
+        "ReceivedAt": {
+          "type": "cds.Timestamp"
+        },
+        "RawPayload": {
+          "type": "cds.LargeString"
+        }
+      }
+    },
+    "fisc.FiscalizationService.Errors": {
+      "kind": "entity",
+      "projection": {
+        "from": {
+          "ref": [
+            "fisc.ErrorLog"
+          ]
+        }
+      },
+      "elements": {
+        "InvoiceId_InvoiceId": {
+          "key": true,
+          "type": "cds.Association",
+          "target": "fisc.FiscalizationService.Invoices",
+          "keys": [
+            {
+              "ref": [
+                "InvoiceId"
+              ]
+            }
+          ]
+        },
+        "Code": {
+          "type": "cds.String",
+          "length": 40
+        },
+        "Message": {
+          "type": "cds.LargeString"
+        },
+        "RetryCount": {
+          "type": "cds.Integer"
+        },
+        "LastTriedAt": {
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "fisc.FiscalizationService.submitFromEvent": {
+      "kind": "action",
+      "@path": "submitFromEvent",
+      "params": {
+        "payload": {
+          "type": "fisc.fisc_EventPayload"
+        }
+      },
+      "returns": {
+        "elements": {
+          "InvoiceId": {
+            "type": "cds.String",
+            "length": 40
+          },
+          "Status": {
+            "type": "cds.String",
+            "length": 12
+          }
+        }
+      }
+    },
+    "fisc.FiscalizationService.ackEOR": {
+      "kind": "action",
+      "@path": "ackEOR",
+      "params": {
+        "data": {
+          "type": "fisc.EorAck"
+        }
+      },
+      "returns": {
+        "elements": {
+          "ok": {
+            "type": "cds.Boolean"
+          }
+        }
+      }
+    },
+    "fisc.FiscalizationService.status": {
+      "kind": "function",
+      "@path": "status",
+      "params": {
+        "InvoiceId": {
+          "type": "cds.String",
+          "length": 40
+        }
+      },
+      "returns": {
+        "elements": {
+          "Status": {
+            "type": "cds.String",
+            "length": 12
+          },
+          "ZOI": {
+            "type": "cds.String",
+            "length": 32
+          },
+          "EOR": {
+            "type": "cds.String",
+            "length": 64
+          }
+        }
+      }
+    },
+    "fisc.FiscalizationService.resend": {
+      "kind": "action",
+      "@path": "resend",
+      "params": {
+        "InvoiceId": {
+          "type": "cds.String",
+          "length": 40
+        }
+      },
+      "returns": {
+        "elements": {
+          "ok": {
+            "type": "cds.Boolean"
+          }
+        }
+      }
+    },
+    "cds.outbox.Messages": {
+      "kind": "entity",
+      "elements": {
+        "ID": {
+          "key": true,
+          "type": "cds.UUID"
+        },
+        "timestamp": {
+          "type": "cds.Timestamp"
+        },
+        "target": {
+          "type": "cds.String"
+        },
+        "msg": {
+          "type": "cds.LargeString"
+        },
+        "attempts": {
+          "type": "cds.Integer",
+          "default": {
+            "val": 0
+          }
+        },
+        "partition": {
+          "type": "cds.Integer",
+          "default": {
+            "val": 0
+          }
+        },
+        "lastError": {
+          "type": "cds.LargeString"
+        },
+        "lastAttemptTimestamp": {
+          "@cds.on.update": {
+            "=": "$now"
+          },
+          "type": "cds.Timestamp"
+        },
+        "status": {
+          "type": "cds.String",
+          "length": 23
+        }
+      }
+    }
+  },
+  "meta": {
+    "creator": "CDS Compiler v6.4.2",
+    "flavor": "inferred"
+  },
+  "$version": "2.0"
+}

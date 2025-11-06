@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:Reference Uri="https://sap.github.io/odata-vocabularies/vocabularies/Common.xml">
+    <edmx:Include Alias="Common" Namespace="com.sap.vocabularies.Common.v1"/>
+  </edmx:Reference>
+  <edmx:Reference Uri="https://oasis-tcs.github.io/odata-vocabularies/vocabularies/Org.OData.Core.V1.xml">
+    <edmx:Include Alias="Core" Namespace="Org.OData.Core.V1"/>
+  </edmx:Reference>
+  <edmx:DataServices>
+    <Schema Namespace="fisc.FiscalizationService" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <Annotation Term="Core.Links">
+        <Collection>
+          <Record>
+            <PropertyValue Property="rel" String="author"/>
+            <PropertyValue Property="href" String="https://cap.cloud.sap"/>
+          </Record>
+        </Collection>
+      </Annotation>
+      <EntityContainer Name="EntityContainer">
+        <EntitySet Name="Invoices" EntityType="fisc.FiscalizationService.Invoices"/>
+        <EntitySet Name="Responses" EntityType="fisc.FiscalizationService.Responses">
+          <NavigationPropertyBinding Path="InvoiceId" Target="Invoices"/>
+        </EntitySet>
+        <EntitySet Name="Errors" EntityType="fisc.FiscalizationService.Errors">
+          <NavigationPropertyBinding Path="InvoiceId" Target="Invoices"/>
+        </EntitySet>
+        <ActionImport Name="submitFromEvent" Action="fisc.FiscalizationService.submitFromEvent"/>
+        <FunctionImport Name="status" Function="fisc.FiscalizationService.status"/>
+        <ActionImport Name="resend" Action="fisc.FiscalizationService.resend"/>
+        <ActionImport Name="ackEOR" Action="fisc.FiscalizationService.ackEOR"/>
+      </EntityContainer>
+      <EntityType Name="Invoices">
+        <Key>
+          <PropertyRef Name="InvoiceId"/>
+        </Key>
+        <Property Name="InvoiceId" Type="Edm.String" MaxLength="40" Nullable="false"/>
+        <Property Name="TaxNumber" Type="Edm.String" MaxLength="15"/>
+        <Property Name="IssueDateTime" Type="Edm.DateTimeOffset" Precision="7"/>
+        <Property Name="Amount" Type="Edm.Decimal" Precision="15" Scale="2"/>
+        <Property Name="PremiseId" Type="Edm.String" MaxLength="10"/>
+        <Property Name="DeviceId" Type="Edm.String" MaxLength="10"/>
+        <Property Name="ZOI" Type="Edm.String" MaxLength="32"/>
+        <Property Name="Status" Type="Edm.String" MaxLength="12"/>
+        <Property Name="CorrelationID" Type="Edm.String" MaxLength="64"/>
+        <Property Name="IdempotencyKey" Type="Edm.String" MaxLength="128"/>
+        <Property Name="CreatedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+        <Property Name="UpdatedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+      </EntityType>
+      <EntityType Name="Responses">
+        <Key>
+          <PropertyRef Name="InvoiceId_InvoiceId"/>
+        </Key>
+        <NavigationProperty Name="InvoiceId" Type="fisc.FiscalizationService.Invoices">
+          <ReferentialConstraint Property="InvoiceId_InvoiceId" ReferencedProperty="InvoiceId"/>
+        </NavigationProperty>
+        <Property Name="InvoiceId_InvoiceId" Type="Edm.String" MaxLength="40" Nullable="false"/>
+        <Property Name="EOR" Type="Edm.String" MaxLength="64"/>
+        <Property Name="ReceivedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+        <Property Name="RawPayload" Type="Edm.String"/>
+      </EntityType>
+      <EntityType Name="Errors">
+        <Key>
+          <PropertyRef Name="InvoiceId_InvoiceId"/>
+        </Key>
+        <NavigationProperty Name="InvoiceId" Type="fisc.FiscalizationService.Invoices">
+          <ReferentialConstraint Property="InvoiceId_InvoiceId" ReferencedProperty="InvoiceId"/>
+        </NavigationProperty>
+        <Property Name="InvoiceId_InvoiceId" Type="Edm.String" MaxLength="40" Nullable="false"/>
+        <Property Name="Code" Type="Edm.String" MaxLength="40"/>
+        <Property Name="Message" Type="Edm.String"/>
+        <Property Name="RetryCount" Type="Edm.Int32"/>
+        <Property Name="LastTriedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+      </EntityType>
+      <ComplexType Name="return_fisc_FiscalizationService_submitFromEvent">
+        <Property Name="InvoiceId" Type="Edm.String" MaxLength="40"/>
+        <Property Name="Status" Type="Edm.String" MaxLength="12"/>
+      </ComplexType>
+      <ComplexType Name="fisc_EventPayload">
+        <Property Name="invoiceId" Type="Edm.String" MaxLength="40"/>
+        <Property Name="taxNumber" Type="Edm.String" MaxLength="15"/>
+        <Property Name="amount" Type="Edm.Decimal" Precision="15" Scale="2"/>
+        <Property Name="timestamp" Type="Edm.DateTimeOffset" Precision="7"/>
+      </ComplexType>
+      <ComplexType Name="return_fisc_FiscalizationService_status">
+        <Property Name="Status" Type="Edm.String" MaxLength="12"/>
+        <Property Name="ZOI" Type="Edm.String" MaxLength="32"/>
+        <Property Name="EOR" Type="Edm.String" MaxLength="64"/>
+      </ComplexType>
+      <ComplexType Name="return_fisc_FiscalizationService_resend">
+        <Property Name="ok" Type="Edm.Boolean"/>
+      </ComplexType>
+      <ComplexType Name="return_fisc_FiscalizationService_ackEOR">
+        <Property Name="ok" Type="Edm.Boolean"/>
+      </ComplexType>
+      <ComplexType Name="fisc_EorAck">
+        <Property Name="invoiceId" Type="Edm.String" MaxLength="40"/>
+        <Property Name="eor" Type="Edm.String" MaxLength="64"/>
+        <Property Name="receivedAt" Type="Edm.DateTimeOffset" Precision="7"/>
+        <Property Name="rawResponse" Type="Edm.String"/>
+      </ComplexType>
+      <Action Name="submitFromEvent" IsBound="false">
+        <Parameter Name="payload" Type="fisc.FiscalizationService.fisc_EventPayload"/>
+        <ReturnType Type="fisc.FiscalizationService.return_fisc_FiscalizationService_submitFromEvent"/>
+      </Action>
+      <Function Name="status" IsBound="false" IsComposable="false">
+        <Parameter Name="InvoiceId" Type="Edm.String" MaxLength="40"/>
+        <ReturnType Type="fisc.FiscalizationService.return_fisc_FiscalizationService_status"/>
+      </Function>
+      <Action Name="resend" IsBound="false">
+        <Parameter Name="InvoiceId" Type="Edm.String" MaxLength="40"/>
+        <ReturnType Type="fisc.FiscalizationService.return_fisc_FiscalizationService_resend"/>
+      </Action>
+      <Action Name="ackEOR" IsBound="false">
+        <Parameter Name="data" Type="fisc.FiscalizationService.fisc_EorAck"/>
+        <ReturnType Type="fisc.FiscalizationService.return_fisc_FiscalizationService_ackEOR"/>
+      </Action>
+      <Annotations Target="fisc.FiscalizationService.Invoices/CreatedAt">
+        <Annotation Term="Core.Computed" Bool="true"/>
+      </Annotations>
+      <Annotations Target="fisc.FiscalizationService.Invoices/UpdatedAt">
+        <Annotation Term="Core.Computed" Bool="true"/>
+      </Annotations>
+      <Annotations Target="fisc.FiscalizationService.status(Edm.String)/InvoiceId">
+        <Annotation Term="Core.OptionalParameter">
+          <Record Type="Core.OptionalParameterType"/>
+        </Annotation>
+      </Annotations>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

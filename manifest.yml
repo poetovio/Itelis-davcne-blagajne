@@ -1,0 +1,14 @@
+applications:
+- name: cap-fiscal-core
+  memory: 256M
+  default-route: true
+  buildpacks:
+    - nodejs_buildpack
+  command: npx cds-serve
+  env:
+    NODE_ENV: production
+    CDS_REQUIRES_MESSAGING_KIND: enterprise-messaging-shared
+  services:
+    - event_mesh
+    - cap-fiscal-core-xsuaa
+    - app-logs
