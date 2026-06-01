@@ -30,7 +30,13 @@
         "kind": "enterprise-messaging-amqp",
         "emname": "event_mesh",
         "namespace": "itelis/fiscal/test",
-        "queue": "cap-fiscal-core",
+        "queue": {
+          "name": "cap-fiscal-core",
+          "subscribePrefix": "$namespace/",
+          "subscriptions": [
+            { "topicPattern": "itelis/fiscal/test/invoice/created" }
+          ]
+        },
         "outboxed": false
       }
     }
