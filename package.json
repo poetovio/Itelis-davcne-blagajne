@@ -32,12 +32,15 @@
         "namespace": "itelis/fiscal/test",
         "queue": {
           "name": "cap-fiscal-core",
+          "accessType": "NON_EXCLUSIVE",
           "subscribePrefix": "$namespace/",
           "subscriptions": [
             { "topicPattern": "itelis/fiscal/test/invoice/created" }
           ]
         },
-        "outboxed": false
+        "outboxed": false,
+        "publishPrefix": "$namespace/",
+        "management": {}
       }
     }
   }
