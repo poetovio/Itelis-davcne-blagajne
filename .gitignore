@@ -3,6 +3,7 @@ certificates/
 *.pfx
 *.key
 *.pem
+*.cer
 
 .env
 
