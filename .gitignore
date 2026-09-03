@@ -3,3 +3,7 @@ certificates/
 *.pfx
 *.key
 *.pem
+
+.env
+
+node_modules/

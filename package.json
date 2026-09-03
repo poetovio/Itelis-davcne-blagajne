@@ -5,25 +5,38 @@
     "start": "cds-serve",
     "watch": "cds watch"
   },
-  "engines": { "node": "20.x" },
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "@cap-js/sqlite": "2.0.3",
     "@sap/cds": "^9.4.3",
     "@sap/xb-msg-amqp-v100": "0.9.58",
     "@sap/xsenv": "^6.0.0",
-    "@sap/xssec": "^4.10.0"
+    "@sap/xssec": "^4.10.0",
+    "dotenv": "^17.4.2"
   },
   "devDependencies": {
     "@sap/cds-dk": "^9.4.1"
   },
   "cds": {
-    "model": ["srv", "db"],
-    "features": { "outbox": false },
+    "model": [
+      "srv",
+      "db"
+    ],
+    "features": {
+      "outbox": false
+    },
     "requires": {
-      "auth": { "kind": "mocked" },
+      "auth": {
+        "kind": "mocked"
+      },
       "db": {
         "kind": "sqlite",
-        "model": ["srv", "db"],
+        "model": [
+          "srv",
+          "db"
+        ],
         "deploy": true
       },
       "messaging": {
@@ -35,7 +48,9 @@
           "accessType": "NON_EXCLUSIVE",
           "subscribePrefix": "$namespace/",
           "subscriptions": [
-            { "topicPattern": "itelis/fiscal/test/invoice/created" }
+            {
+              "topicPattern": "itelis/fiscal/test/invoice/created"
+            }
           ]
         },
         "outboxed": false,
