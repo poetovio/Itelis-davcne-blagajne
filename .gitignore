@@ -1,0 +1,5 @@
+certificates/
+*.p12
+*.pfx
+*.key
+*.pem
