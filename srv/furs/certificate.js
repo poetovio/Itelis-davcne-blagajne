@@ -57,7 +57,7 @@ function getPrivateKey() {
     throw new Error('Private key not found in FURS PKCS#12 certificate');
   }
 
-  return keyBags[0].key;
+  return forge.pki.privateKeyToPem(keyBags[0].key);
 }
 
 module.exports = {
