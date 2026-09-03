@@ -1,8 +1,8 @@
-// srv/fiscalization-service.js
 const crypto = require('crypto');
 const cds = require('@sap/cds');
 const https = require('https');
 const fs = require('fs');
+const { calculateZoi } = require('./furs/zoi');
 
 function makeIdemKey(p) {
   const taxNumber = (p?.taxNumber || p?.TaxNumber || '').toString().replace(/\s+/g, '').toUpperCase();
@@ -19,24 +19,50 @@ function makeIdemKey(p) {
 }
 
 function makeZoi(p) {
-  const taxNumber = (p?.taxNumber || p?.TaxNumber || '').toString().replace(/\s+/g, '').toUpperCase();
-  const invoiceId = (p?.invoiceId || p?.InvoiceId || p?.billingDocument || '').toString().trim();
-  const issueDateTime = new Date(p?.issueDateTime || p?.timestamp || Date.now()).toISOString().replace(/\.\d{3}Z$/, 'Z');
-  const businessPremiseId = (p?.premiseId || p?.PremiseId || '').toString().trim();
-  const electronicDeviceId = (p?.deviceId || p?.DeviceId || '').toString().trim();
-  let amt = p?.amount ?? p?.Amount ?? '';
-  if (typeof amt === 'string') amt = amt.replace(',', '.');
-  const amount = amt === '' || isNaN(+amt) ? '' : (+amt).toFixed(2);
-  const canonical = [
+  const taxNumber =
+    (p?.taxNumber || p?.TaxNumber || '')
+      .toString()
+      .replace(/\s+/g, '')
+      .toUpperCase();
+
+  const invoiceNumber =
+    (p?.invoiceId || p?.InvoiceId || p?.billingDocument || '')
+      .toString()
+      .trim();
+
+  const issueDateTime =
+    p?.issueDateTime ||
+    p?.timestamp ||
+    '';
+
+  const businessPremiseId =
+    (p?.premiseId || p?.PremiseId || '')
+      .toString()
+      .trim();
+
+  const electronicDeviceId =
+    (p?.deviceId || p?.DeviceId || '')
+      .toString()
+      .trim();
+
+  let amount = p?.amount ?? p?.Amount ?? '';
+
+  if (typeof amount === 'string') {
+    amount = amount.replace(',', '.');
+  }
+
+  if (amount !== '' && !isNaN(+amount)) {
+    amount = (+amount).toFixed(2);
+  }
+
+  return calculateZoi({
     taxNumber,
     issueDateTime,
-    invoiceId,
+    invoiceNumber,
     businessPremiseId,
     electronicDeviceId,
-    amount
-  ].join('|');
-
-  return crypto.createHash('sha256').update(canonical, 'utf8').digest('hex');
+    invoiceAmount: amount
+  });
 }
 
 function normalizeFursResponse(body) {
