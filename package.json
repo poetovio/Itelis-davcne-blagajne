@@ -14,7 +14,8 @@
     "@sap/xb-msg-amqp-v100": "0.9.58",
     "@sap/xsenv": "^6.0.0",
     "@sap/xssec": "^4.10.0",
-    "dotenv": "^17.4.2"
+    "dotenv": "^17.4.2",
+    "node-forge": "^1.4.0"
   },
   "devDependencies": {
     "@sap/cds-dk": "^9.4.1"

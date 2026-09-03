@@ -1,8 +1,8 @@
 const crypto = require('crypto');
 const cds = require('@sap/cds');
 const https = require('https');
-const fs = require('fs');
 const { calculateZoi } = require('./furs/zoi');
+const { getFursCertificate } = require('./furs/certificate');
 
 function makeIdemKey(p) {
   const taxNumber = (p?.taxNumber || p?.TaxNumber || '').toString().replace(/\s+/g, '').toUpperCase();
@@ -15,7 +15,11 @@ function makeIdemKey(p) {
   const amount = amt === '' || isNaN(+amt) ? '' : (+amt).toFixed(2);
   const docType = (p?.documentType || '').toString().trim();
   const canonical = [taxNumber, companyCode, invoiceId, ts, amount, docType].join('|');
-  return crypto.createHash('sha256').update(canonical, 'utf8').digest('hex');
+
+  return crypto
+    .createHash('sha256')
+    .update(canonical, 'utf8')
+    .digest('hex');
 }
 
 function makeZoi(p) {
@@ -67,41 +71,51 @@ function makeZoi(p) {
 
 function normalizeFursResponse(body) {
   if (!body) return {};
-  if (typeof body === 'object') return body;
-  try { return JSON.parse(body); } catch (_) { return { raw: body }; }
+
+  if (typeof body === 'object') {
+    return body;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch (_) {
+    return { raw: body };
+  }
 }
 
-function callFurs(payload, zoi) {
-  return new Promise((resolve, reject) => {
-    const host = process.env.FURS_HOST;
-    const path = process.env.FURS_PATH;
-    const certPath = process.env.FURS_CERT_PATH;
-    const keyPath = process.env.FURS_KEY_PATH;
-    const caPath = process.env.FURS_CA_PATH;
-    const passphrase = process.env.FURS_CERT_PASSPHRASE;
+async function callFurs(payload, zoi) {
+  const host = process.env.FURS_HOST;
+  const path = process.env.FURS_PATH;
+  const caPath = process.env.FURS_CA_PATH;
 
-    if (!host || !path || !certPath || !keyPath) {
-      return reject(new Error('Missing FURS_HOST, FURS_PATH, FURS_CERT_PATH or FURS_KEY_PATH'));
+  if (!host || !path) {
+    throw new Error('Missing FURS_HOST or FURS_PATH');
+  }
+
+  const certificate = getFursCertificate();
+
+  const options = {
+    hostname: host,
+    path,
+    method: 'POST',
+    pfx: certificate.pfx,
+    passphrase: certificate.passphrase,
+    ca: caPath ? require('fs').readFileSync(caPath) : undefined,
+    rejectUnauthorized: true,
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
     }
+  };
 
-    const options = {
-      hostname: host,
-      path,
-      method: 'POST',
-      cert: fs.readFileSync(certPath),
-      key: fs.readFileSync(keyPath),
-      ca: caPath ? fs.readFileSync(caPath) : undefined,
-      passphrase: passphrase || undefined,
-      rejectUnauthorized: true,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    };
-
+  return new Promise((resolve, reject) => {
     const req = https.request(options, (res) => {
       let data = '';
-      res.on('data', chunk => data += chunk);
+
+      res.on('data', chunk => {
+        data += chunk;
+      });
+
       res.on('end', () => {
         resolve({
           statusCode: res.statusCode,
@@ -129,7 +143,9 @@ module.exports = (srv) => {
     let p = {};
 
     try {
-      p = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+      p = typeof raw === 'string'
+        ? JSON.parse(raw || '{}')
+        : (raw || {});
     } catch (e) {
       return req.error(400, `Invalid JSON payload: ${e.message}`);
     }
@@ -139,7 +155,10 @@ module.exports = (srv) => {
     const corr = req.headers?.['x-correlation-id'] || cds.utils.uuid();
 
     const existing = await tx.run(
-      SELECT.one.from(Invoices).columns('InvoiceId', 'Status', 'ZOI', 'EOR').where({ IdempotencyKey: idem })
+      SELECT.one
+        .from(Invoices)
+        .columns('InvoiceId', 'Status', 'ZOI', 'EOR')
+        .where({ IdempotencyKey: idem })
     );
 
     if (existing) {
@@ -151,30 +170,51 @@ module.exports = (srv) => {
       };
     }
 
-    const invoiceId = p.invoiceId || cds.utils.uuid();
-    const now = new Date().toISOString();
-    const issueDateTime = p.issueDateTime || p.timestamp || now;
-    const zoi = makeZoi({ ...p, invoiceId, issueDateTime });
+    const invoiceId =
+      p.invoiceId ||
+      p.InvoiceId ||
+      p.billingDocument ||
+      cds.utils.uuid();
 
-    await tx.run(INSERT.into(Invoices).entries({
-      InvoiceId: invoiceId,
-      TaxNumber: p.taxNumber ?? null,
-      IssueDateTime: issueDateTime,
-      Amount: p.amount ?? null,
-      PremiseId: p.premiseId ?? null,
-      DeviceId: p.deviceId ?? null,
-      ZOI: zoi,
-      EOR: null,
-      Status: 'PENDING',
-      CorrelationID: corr,
-      IdempotencyKey: idem
-    }));
+    const now = new Date().toISOString();
+    const issueDateTime =
+      p.issueDateTime ||
+      p.timestamp ||
+      now;
+
+    let zoi;
+
+    try {
+      zoi = makeZoi({
+        ...p,
+        invoiceId,
+        issueDateTime
+      });
+    } catch (err) {
+      return req.error(500, `ZOI calculation failed: ${err.message}`);
+    }
+
+    await tx.run(
+      INSERT.into(Invoices).entries({
+        InvoiceId: invoiceId,
+        TaxNumber: p.taxNumber ?? null,
+        IssueDateTime: issueDateTime,
+        Amount: p.amount ?? null,
+        PremiseId: p.premiseId ?? null,
+        DeviceId: p.deviceId ?? null,
+        ZOI: zoi,
+        EOR: null,
+        Status: 'PENDING',
+        CorrelationID: corr,
+        IdempotencyKey: idem
+      })
+    );
 
     try {
       const fursPayload = {
         invoiceId,
         taxNumber: p.taxNumber ?? null,
-        issueDateTime: issueDateTime,
+        issueDateTime,
         amount: p.amount ?? null,
         premiseId: p.premiseId ?? null,
         deviceId: p.deviceId ?? null,
@@ -193,24 +233,36 @@ module.exports = (srv) => {
         parsed?.invoiceEor ||
         null;
 
-      const status = fursResp.statusCode >= 200 && fursResp.statusCode < 300 && eor
-        ? 'CONFIRMED'
-        : 'ERROR';
+      const status =
+        fursResp.statusCode >= 200 &&
+        fursResp.statusCode < 300 &&
+        eor
+          ? 'CONFIRMED'
+          : 'ERROR';
 
       await tx.run(
-        UPDATE(Invoices).set({
-          Status: status,
-          ZOI: zoi,
-          EOR: eor
-        }).where({ InvoiceId: invoiceId })
+        UPDATE(Invoices)
+          .set({
+            Status: status,
+            ZOI: zoi,
+            EOR: eor
+          })
+          .where({ InvoiceId: invoiceId })
       );
 
-      await tx.run(INSERT.into(Responses).entries({
-        InvoiceId_InvoiceId: { InvoiceId: invoiceId },
-        EOR: eor,
-        ReceivedAt: new Date(),
-        RawPayload: typeof fursResp.body === 'string' ? fursResp.body : JSON.stringify(fursResp.body)
-      }));
+      await tx.run(
+        INSERT.into(Responses).entries({
+          InvoiceId_InvoiceId: {
+            InvoiceId: invoiceId
+          },
+          EOR: eor,
+          ReceivedAt: new Date(),
+          RawPayload:
+            typeof fursResp.body === 'string'
+              ? fursResp.body
+              : JSON.stringify(fursResp.body)
+        })
+      );
 
       return {
         InvoiceId: invoiceId,
@@ -220,10 +272,12 @@ module.exports = (srv) => {
       };
     } catch (err) {
       await tx.run(
-        UPDATE(Invoices).set({
-          Status: 'ERROR',
-          ZOI: zoi
-        }).where({ InvoiceId: invoiceId })
+        UPDATE(Invoices)
+          .set({
+            Status: 'ERROR',
+            ZOI: zoi
+          })
+          .where({ InvoiceId: invoiceId })
       );
 
       return req.error(502, `FURS call failed: ${err.message}`);
@@ -232,45 +286,108 @@ module.exports = (srv) => {
 
   srv.on('ackEOR', async (req) => {
     const d = req.data?.data || {};
-    const { invoiceId, eor, receivedAt, rawResponse } = d;
-    if (!invoiceId || !eor) return req.reject(400, 'invoiceId and eor are required');
+    const {
+      invoiceId,
+      eor,
+      receivedAt,
+      rawResponse
+    } = d;
+
+    if (!invoiceId || !eor) {
+      return req.reject(
+        400,
+        'invoiceId and eor are required'
+      );
+    }
 
     const tx = srv.transaction(req);
 
     const exists = await tx.run(
-      SELECT.one.from(Responses).where({ InvoiceId_InvoiceId: { InvoiceId: invoiceId } })
+      SELECT.one
+        .from(Responses)
+        .where({
+          InvoiceId_InvoiceId: {
+            InvoiceId: invoiceId
+          }
+        })
     );
 
     if (!exists) {
-      await tx.run(INSERT.into(Responses).entries({
-        InvoiceId_InvoiceId: { InvoiceId: invoiceId },
-        EOR: eor,
-        ReceivedAt: receivedAt ? new Date(receivedAt) : new Date(),
-        RawPayload: rawResponse || null
-      }));
+      await tx.run(
+        INSERT.into(Responses).entries({
+          InvoiceId_InvoiceId: {
+            InvoiceId: invoiceId
+          },
+          EOR: eor,
+          ReceivedAt: receivedAt
+            ? new Date(receivedAt)
+            : new Date(),
+          RawPayload: rawResponse || null
+        })
+      );
     }
 
     await tx.run(
-      UPDATE(Invoices).set({ Status: 'CONFIRMED', EOR: eor }).where({ InvoiceId: invoiceId })
+      UPDATE(Invoices)
+        .set({
+          Status: 'CONFIRMED',
+          EOR: eor
+        })
+        .where({ InvoiceId: invoiceId })
     );
 
-    return { ok: true };
+    return {
+      ok: true
+    };
   });
 
   srv.on('status', async (req) => {
     const { InvoiceId } = req.data;
-    const inv = await SELECT.one.from(Invoices).columns('Status', 'ZOI', 'EOR').where({ InvoiceId });
-    if (!inv) return { Status: null, ZOI: null, EOR: null };
-    return { Status: inv.Status, ZOI: inv.ZOI, EOR: inv.EOR ?? null };
+
+    const inv = await SELECT.one
+      .from(Invoices)
+      .columns('Status', 'ZOI', 'EOR')
+      .where({ InvoiceId });
+
+    if (!inv) {
+      return {
+        Status: null,
+        ZOI: null,
+        EOR: null
+      };
+    }
+
+    return {
+      Status: inv.Status,
+      ZOI: inv.ZOI,
+      EOR: inv.EOR ?? null
+    };
   });
 
   srv.on('resend', async (req) => {
     const { InvoiceId } = req.data || {};
-    if (!InvoiceId) return req.reject(400, 'InvoiceId is required');
+
+    if (!InvoiceId) {
+      return req.reject(
+        400,
+        'InvoiceId is required'
+      );
+    }
 
     const tx = srv.transaction(req);
-    const inv = await tx.run(SELECT.one.from(Invoices).where({ InvoiceId }));
-    if (!inv) return req.reject(404, 'Invoice not found');
+
+    const inv = await tx.run(
+      SELECT.one
+        .from(Invoices)
+        .where({ InvoiceId })
+    );
+
+    if (!inv) {
+      return req.reject(
+        404,
+        'Invoice not found'
+      );
+    }
 
     const zoi = inv.ZOI || makeZoi(inv);
 
@@ -284,8 +401,15 @@ module.exports = (srv) => {
         deviceId: inv.DeviceId
       };
 
-      const fursResp = await callFurs(fursPayload, zoi);
-      const parsed = normalizeFursResponse(fursResp.body);
+      const fursResp = await callFurs(
+        fursPayload,
+        zoi
+      );
+
+      const parsed =
+        normalizeFursResponse(
+          fursResp.body
+        );
 
       const eor =
         parsed?.EOR ||
@@ -295,11 +419,17 @@ module.exports = (srv) => {
         null;
 
       await tx.run(
-        UPDATE(Invoices).set({
-          Status: eor ? 'CONFIRMED' : 'ERROR',
-          ZOI: zoi,
-          EOR: eor
-        }).where({ InvoiceId })
+        UPDATE(Invoices)
+          .set({
+            Status: eor
+              ? 'CONFIRMED'
+              : 'ERROR',
+            ZOI: zoi,
+            EOR: eor
+          })
+          .where({
+            InvoiceId
+          })
       );
 
       return {
@@ -309,7 +439,10 @@ module.exports = (srv) => {
         EOR: eor
       };
     } catch (err) {
-      return req.error(502, `Resend failed: ${err.message}`);
+      return req.error(
+        502,
+        `Resend failed: ${err.message}`
+      );
     }
   });
 };
