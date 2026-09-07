@@ -5,6 +5,8 @@ const { calculateZoi } = require('./furs/zoi');
 const { createJws } = require('./furs/jws');
 const { getFursCertificate } = require('./furs/certificate');
 
+let messaging;
+
 // FURS requires date/time as YYYY-MM-DDTHH:MM:SS — no milliseconds, no
 // trailing Z (see TehnicnaDokumentacija, e.g. R_3.2 / example payloads).
 // This must be used both for the ZOI input string and for the
@@ -37,6 +39,25 @@ function toFursDateTime(value) {
   // instances typically run in UTC, which would otherwise silently shift
   // invoice times by 1-2 hours depending on DST).
   return fursDateTimeFormatter.format(d).replace(' ', 'T');
+}
+
+async function publishFiscalizationResult(result) {
+  if (!messaging) {
+    messaging = await cds.connect.to('messaging');
+  }
+
+  const topic = 'invoice/fiscalized';
+
+  console.log('\n========== EVENT MESH RESULT ==========');
+  console.log('➡️ Publishing to topic:', topic);
+  console.log('➡️ Payload:', JSON.stringify(result, null, 2));
+
+  await messaging.emit(
+    topic,
+    result
+  );
+
+  console.log('✅ Fiscalization result published');
 }
 
 function makeIdemKey(p) {
@@ -471,6 +492,19 @@ module.exports = (srv) => {
               : JSON.stringify(fursResp.body)
         })
       );
+
+      const fiscalizationResult = {
+        invoiceId: String(invoiceId),
+        status,
+        zoi,
+        eor,
+        premiseId: p.premiseId ?? p.PremiseId ?? null,
+        deviceId: p.deviceId ?? p.DeviceId ?? null,
+        amount: p.amount ?? p.Amount ?? null,
+        timestamp: new Date().toISOString()
+      };
+
+      await publishFiscalizationResult(fiscalizationResult);
 
       return {
         InvoiceId: invoiceId,
