@@ -2,17 +2,18 @@ namespace fisc;
 
 entity Invoice {
   key InvoiceId      : String(40);
-      TaxNumber      : String(15);
-      IssueDateTime  : Timestamp;
-      Amount         : Decimal(15,2);
-      PremiseId      : String(10);
-      DeviceId       : String(10);
-      ZOI            : String(32);
-      Status         : String(12);
-      CorrelationID  : String(64);
-      IdempotencyKey : String(128);
-      CreatedAt      : Timestamp @cds.on.insert : $now;
-      UpdatedAt      : Timestamp @cds.on.update : $now;
+  TaxNumber          : String(15);
+  IssueDateTime      : Timestamp;
+  Amount             : Decimal(15,2);
+  PremiseId          : String(10);
+  DeviceId           : String(10);
+  ZOI                : String(32);
+  EOR                : String(64);
+  Status             : String(12);
+  CorrelationID      : String(64);
+  IdempotencyKey     : String(128);
+  CreatedAt          : Timestamp @cds.on.insert : $now;
+  UpdatedAt          : Timestamp @cds.on.update : $now;
 }
 
 entity Response {
@@ -30,12 +31,13 @@ entity ErrorLog {
       LastTriedAt : Timestamp;
 }
 
-/* Tipovi koje koristi handler */
 type fisc_EventPayload : {
-  invoiceId : String(40);
-  taxNumber : String(15);
-  amount    : Decimal(15,2);
-  timestamp : Timestamp;
+  invoiceId    : String(40);
+  taxNumber    : String(15);
+  amount       : Decimal(15,2);
+  timestamp    : Timestamp;
+  premiseId    : String(10);
+  deviceId     : String(10);
 };
 
 type EorAck : {

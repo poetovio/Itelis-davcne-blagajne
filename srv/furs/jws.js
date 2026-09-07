@@ -80,6 +80,18 @@ function getCertificateInfo() {
   };
 }
 
+function buildHeaderJson(certificateInfo) {
+  const serialLiteral = String(certificateInfo.serial);
+
+  return (
+    '{"alg":"RS256"' +
+    ',"subject_name":' + JSON.stringify(certificateInfo.subject_name) +
+    ',"issuer_name":' + JSON.stringify(certificateInfo.issuer_name) +
+    ',"serial":' + serialLiteral +
+    '}'
+  );
+}
+
 function createJws(payload) {
   const privateKey = getPrivateKey();
   const certificateInfo = getCertificateInfo();
@@ -92,7 +104,7 @@ function createJws(payload) {
   };
 
   const encodedHeader = base64Url(
-    JSON.stringify(header)
+    buildHeaderJson(certificateInfo)
   );
 
   const encodedPayload = base64Url(
