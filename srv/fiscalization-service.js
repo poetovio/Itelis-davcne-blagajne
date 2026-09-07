@@ -179,6 +179,21 @@ function buildInvoiceRequest(p, invoiceId, issueDateTime, zoi) {
 
   amount = Number(amount.toFixed(2));
 
+  // ---------------------------------------------------------
+  // FURS VAT data
+  // Test assumption: invoice amount includes 22% VAT
+  // ---------------------------------------------------------
+
+  const taxRate = 22.00;
+
+  const taxableAmount = Number(
+    (amount / (1 + taxRate / 100)).toFixed(2)
+  );
+
+  const taxAmount = Number(
+    (amount - taxableAmount).toFixed(2)
+  );
+
   return {
     InvoiceRequest: {
       Header: {
@@ -205,6 +220,18 @@ function buildInvoiceRequest(p, invoiceId, issueDateTime, zoi) {
         InvoiceAmount: amount,
 
         PaymentAmount: amount,
+
+        TaxesPerSeller: [
+          {
+            VAT: [
+              {
+                TaxRate: taxRate,
+                TaxableAmount: taxableAmount,
+                TaxAmount: taxAmount
+              }
+            ]
+          }
+        ],
 
         OperatorTaxNumber: Number(taxNumber),
 
