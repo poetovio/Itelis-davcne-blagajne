@@ -1,0 +1,6 @@
+VIEW fisc_FiscalizationService_Responses AS SELECT
+  Response_0.InvoiceId_InvoiceId_InvoiceId,
+  Response_0.EOR,
+  Response_0.ReceivedAt,
+  Response_0.RawPayload
+FROM fisc_Response AS Response_0

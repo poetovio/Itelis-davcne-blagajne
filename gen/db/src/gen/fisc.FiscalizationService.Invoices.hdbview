@@ -1,0 +1,15 @@
+VIEW fisc_FiscalizationService_Invoices AS SELECT
+  Invoice_0.InvoiceId,
+  Invoice_0.TaxNumber,
+  Invoice_0.IssueDateTime,
+  Invoice_0.Amount,
+  Invoice_0.PremiseId,
+  Invoice_0.DeviceId,
+  Invoice_0.ZOI,
+  Invoice_0.EOR,
+  Invoice_0.Status,
+  Invoice_0.CorrelationID,
+  Invoice_0.IdempotencyKey,
+  Invoice_0.CreatedAt,
+  Invoice_0.UpdatedAt
+FROM fisc_Invoice AS Invoice_0

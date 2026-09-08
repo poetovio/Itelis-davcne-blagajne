@@ -1,0 +1,8 @@
+COLUMN TABLE fisc_ErrorLog (
+  InvoiceId_InvoiceId_InvoiceId NVARCHAR(40) NOT NULL,
+  Code NVARCHAR(40),
+  Message NCLOB,
+  RetryCount INTEGER,
+  LastTriedAt TIMESTAMP,
+  PRIMARY KEY(InvoiceId_InvoiceId_InvoiceId)
+)

@@ -1,0 +1,7 @@
+COLUMN TABLE fisc_Response (
+  InvoiceId_InvoiceId_InvoiceId NVARCHAR(40) NOT NULL,
+  EOR NVARCHAR(64),
+  ReceivedAt TIMESTAMP,
+  RawPayload NCLOB,
+  PRIMARY KEY(InvoiceId_InvoiceId_InvoiceId)
+)

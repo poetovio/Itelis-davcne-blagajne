@@ -9,6 +9,7 @@
     "node": "20.x"
   },
   "dependencies": {
+    "@cap-js/hana": "^2.8.1",
     "@cap-js/sqlite": "2.0.3",
     "@sap/cds": "^9.4.3",
     "@sap/xb-msg-amqp-v100": "0.9.58",
@@ -34,7 +35,7 @@
         "kind": "mocked"
       },
       "db": {
-        "kind": "sqlite",
+        "kind": "hana",
         "model": [
           "srv",
           "db"

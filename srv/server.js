@@ -3,6 +3,7 @@ require('dotenv').config();
 const cds = require('@sap/cds');
 require('./subscriber');
 require('./fiscalization-service');
+require('./results-listener');
 
 cds.on('bootstrap', (app) => {
   app.get('/health', (_req, res) => res.status(200).type('text/plain').send('OK'));

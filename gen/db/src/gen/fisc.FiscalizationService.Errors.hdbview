@@ -1,0 +1,7 @@
+VIEW fisc_FiscalizationService_Errors AS SELECT
+  ErrorLog_0.InvoiceId_InvoiceId_InvoiceId,
+  ErrorLog_0.Code,
+  ErrorLog_0.Message,
+  ErrorLog_0.RetryCount,
+  ErrorLog_0.LastTriedAt
+FROM fisc_ErrorLog AS ErrorLog_0

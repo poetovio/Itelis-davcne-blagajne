@@ -1,0 +1,16 @@
+COLUMN TABLE fisc_Invoice (
+  InvoiceId NVARCHAR(40) NOT NULL,
+  TaxNumber NVARCHAR(15),
+  IssueDateTime TIMESTAMP,
+  Amount DECIMAL(15, 2),
+  PremiseId NVARCHAR(10),
+  DeviceId NVARCHAR(10),
+  ZOI NVARCHAR(32),
+  EOR NVARCHAR(64),
+  Status NVARCHAR(12),
+  CorrelationID NVARCHAR(64),
+  IdempotencyKey NVARCHAR(128),
+  CreatedAt TIMESTAMP,
+  UpdatedAt TIMESTAMP,
+  PRIMARY KEY(InvoiceId)
+)
