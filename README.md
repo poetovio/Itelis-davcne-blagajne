@@ -250,25 +250,67 @@ Podatki se preko subscriberja posredujejo v davčno potrjevanje.
 
 ## Izhodni dogodek
 
-Po obdelavi se rezultat objavi na:
+Ko je račun uspešno obdelan in je rezultat davčnega potrjevanja pridobljen, aplikacija rezultat objavi nazaj v **SAP Event Mesh**. Rezultatni event je namenjen drugim komponentam oziroma sistemom, ki potrebujejo informacijo o statusu davčnega potrjevanja računa.
+
+Rezultat se objavlja na topic:
 
 ```text
-itelis/fiscal/test/invoice/fiscalized
+itelis/fiscal/test/fiscalization-results
 ```
 
-Rezultat vsebuje informacije o uspešnosti davčnega potrjevanja, predvsem:
+V SAP Event Mesh je lahko na ta topic vezan queue. Pri testiranju v Event Mesh konzoli se zato rezultat prikaže v izbranem queue-u. Ime queue-a je odvisno od njegove konfiguracije oziroma subscriptiona.
 
-- ZOI
-- EOR
-- status
-- morebitne podatke o napaki
+### Oblika rezultatnega sporočila
 
-Aplikacija ima tudi `results-listener.js`, ki posluša rezultatni event in izpiše:
+Rezultat, ki se pojavi v Event Mesh, je zapakiran v objekt `data`. Primer rezultata iz testnega okolja:
+
+```json
+{
+  "data": {
+    "invoiceId": "25",
+    "status": "CONFIRMED",
+    "zoi": "6557229d3af1a54ddbe79074e8478ec6",
+    "eor": "99996046-8c65-41dc-9403-f6c3def4384d",
+    "premiseId": "POS1",
+    "deviceId": "DEV1",
+    "amount": 250.75,
+    "timestamp": "2026-09-08T10:23:23.934Z"
+  }
+}
+```
+
+Glavni podatki v rezultatu so:
+
+| Polje | Pomen |
+|---|---|
+| `invoiceId` | ID računa, ki je bil davčno potrjen |
+| `status` | Rezultat obdelave, npr. `CONFIRMED` |
+| `zoi` | Zaščitna oznaka izdajatelja računa |
+| `eor` | Enkratna identifikacijska oznaka računa, ki jo vrne FURS |
+| `premiseId` | Oznaka poslovnega prostora |
+| `deviceId` | Oznaka elektronske naprave |
+| `amount` | Znesek računa |
+| `timestamp` | Čas obdelave oziroma ustvarjanja rezultata |
+
+### Preverjanje v Event Mesh
+
+V SAP Event Mesh se rezultat preveri tako, da odpremo **Test** → **Consume Messages**, izberemo queue, ki je naročen na rezultatni topic, in kliknemo **Refresh**. Če je rezultat na voljo, se prikaže kot sporočilo v obliki JSON.
+
+Primer prikaza iz testiranja:
 
 ```text
-ZOI: ...
-EOR: ...
+Queue:
+itelis/fiscal/test/itelis/fiscal/test/fiscalization-results
+
+Messages: 1
+Unacknowledged Messages: 1
 ```
+
+Vsebina sporočila je nato prikazana v zavihku **Message Data** in vsebuje zgoraj prikazani `data` objekt.
+
+> **Opomba:** ime queue-a na sliki vsebuje podvojen del `itelis/fiscal/test`. To ni nujno napaka v rezultatu sporočila, ampak je posledica konfiguracije imena queue-a oziroma njegovega subscriptiona v Event Mesh. Pomembno je, da je queue naročen na pravilen topic `itelis/fiscal/test/fiscalization-results` in da v prejetem sporočilu dobimo pričakovani `data` objekt.
+
+Po uspešnem testu se lahko preveri tudi, ali sta bila rezultat in vhodni račun pravilno shranjena v **SAP HANA Cloud**.
 
 ---
 
