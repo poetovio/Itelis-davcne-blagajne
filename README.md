@@ -7,31 +7,51 @@ Aplikacija predstavlja integracijsko plast med zunanjim sistemom, ki objavi dogo
 ## Arhitektura
 
 ```text
-Dogodek o izdanem računu
-          │
-          ▼
-    SAP Event Mesh
-          │
-          ▼
-     CAP aplikacija
-          │
-          ├──────────────► SAP HANA Cloud
-          │                 (Invoices / Responses / ErrorLog)
-          │
-          ▼
-       FURS API
-          │
-          ▼
-   Davčna potrditev računa
-          │
-          ├── ZOI
-          └── EOR
-          │
-          ▼
-    SAP Event Mesh
-          │
-          ▼
-   Rezultat potrditve
+                  ┌──────────────────────┐
+                  │  Zunanji sistem /    │
+                  │  testni račun        │
+                  └──────────┬───────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ SAP Event Mesh  │
+                    │ invoice/created │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  CAP aplikacija │
+                    │    subscriber   │
+                    └────────┬────────┘
+                             │
+                ┌────────────┴────────────┐
+                │                         │
+                ▼                         ▼
+       ┌─────────────────┐       ┌─────────────────┐
+       │ SAP HANA Cloud  │       │    FURS API     │
+       │                 │       │                 │
+       │ Invoice         │       │ Davčno          │
+       │ Response        │       │ potrjevanje     │
+       │ ErrorLog        │       │ računa          │
+       │                 │       └────────┬────────┘
+       │ ZOI + EOR       │                │
+       │ se shranita     │◄───────────────┘
+       └─────────────────┘        FURS vrne
+                ▲                 ZOI / EOR
+                │
+                │ rezultat
+                │
+                └──────────┐
+                           ▼
+                  ┌─────────────────────┐
+                  │   SAP Event Mesh    │
+                  │ fiscalization-      │
+                  │ results             │
+                  └──────────┬──────────┘
+                             │
+                             ▼
+                  Rezultat potrditve
+                  (status, ZOI, EOR, ...)
 ```
 
 ## Tehnologije
@@ -219,6 +239,8 @@ FISC_ERRORLOG
 
 ter pripadajoči CDS pogledi.
 
+`FISC_INVOICE` vsebuje podatke vhodnega računa, `FISC_RESPONSE` pa rezultat davčnega potrjevanja. V odzivu se med drugim hranita **ZOI in EOR**, zato je mogoče celoten proces preveriti neposredno v SAP HANA Cloud.
+
 ---
 
 # SAP Event Mesh
@@ -308,9 +330,24 @@ Unacknowledged Messages: 1
 
 Vsebina sporočila je nato prikazana v zavihku **Message Data** in vsebuje zgoraj prikazani `data` objekt.
 
-> **Opomba:** ime queue-a na sliki vsebuje podvojen del `itelis/fiscal/test`. To ni nujno napaka v rezultatu sporočila, ampak je posledica konfiguracije imena queue-a oziroma njegovega subscriptiona v Event Mesh. Pomembno je, da je queue naročen na pravilen topic `itelis/fiscal/test/fiscalization-results` in da v prejetem sporočilu dobimo pričakovani `data` objekt.
+> **Opomba:** ime queue-a na sliki vsebuje podvojen del `itelis/fiscal/test`. To je povezano s konfiguracijo queue-a oziroma subscriptiona v Event Mesh. Pri preverjanju je pomembno, da je queue naročen na pravilen rezultatni topic `itelis/fiscal/test/fiscalization-results`.
 
-Po uspešnem testu se lahko preveri tudi, ali sta bila rezultat in vhodni račun pravilno shranjena v **SAP HANA Cloud**.
+### Primer rezultata v SAP Event Mesh
+
+Spodnja slika prikazuje dejanski rezultat uspešnega testiranja v SAP Event Mesh:
+
+
+V rezultatu se nahajajo podatki, ki jih je aplikacija pridobila oziroma ustvarila med davčnim potrjevanjem:
+
+- `invoiceId` – ID računa,
+- `status` – rezultat davčnega potrjevanja (`CONFIRMED`),
+- `zoi` – zaščitna oznaka izdajatelja,
+- `eor` – enkratna identifikacijska oznaka računa, ki jo vrne FURS,
+- `premiseId` in `deviceId` – podatka o poslovnem prostoru in napravi,
+- `amount` – znesek računa,
+- `timestamp` – čas obdelave.
+
+**Pomembno:** ZOI in EOR se ne pošljeta samo nazaj preko Event Mesh, ampak se rezultat davčnega potrjevanja shrani tudi v **SAP HANA Cloud**. Zato lahko po uspešnem testu v Database Explorerju preverimo tako vhodni račun kot tudi pripadajoči rezultat (`Response`), vključno z ZOI in EOR.
 
 ---
 
@@ -491,3 +528,36 @@ Podrobna navodila za uporabo projekta bodo dodana v naslednjih poglavjih:
 10. **Pridobitev ZOI in EOR rezultata**
 11. **Preverjanje rezultata v Event Mesh**
 12. **Deploy aplikacije na SAP BTP / Cloud Foundry**
+
+## SAP Event Mesh
+
+Vhodni račun se objavi na topic:
+
+```text
+itelis/fiscal/test/invoice/created
+```
+
+Po obdelavi aplikacija objavi rezultat na:
+
+```text
+itelis/fiscal/test/fiscalization-results
+```
+
+Primer rezultata:
+
+```json
+{
+  "data": {
+    "invoiceId": "25",
+    "status": "CONFIRMED",
+    "zoi": "6557229d3af1a54ddbe79074e8478ec6",
+    "eor": "99996046-8c65-41dc-9403-f6c3def4384d",
+    "premiseId": "POS1",
+    "deviceId": "DEV1",
+    "amount": 250.75,
+    "timestamp": "2026-09-08T10:23:23.934Z"
+  }
+}
+```
+
+ZOI in EOR se poleg objave rezultata v Event Mesh shranita tudi v SAP HANA Cloud.
