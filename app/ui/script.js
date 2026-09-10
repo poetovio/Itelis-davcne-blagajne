@@ -56,32 +56,19 @@ const downloadPdfBtn =
 const downloadNote =
   document.getElementById("downloadNote");
 
-
 let pollTimer = null;
 let currentPayload = null;
 let currentResult = null;
 
-
-// ---------------------------------------------------------
-// INITIAL VALUE
-// ---------------------------------------------------------
-
 invoiceIdInput.value =
   String(Date.now()).slice(-6);
-
-
-// ---------------------------------------------------------
-// HELPERS
-// ---------------------------------------------------------
 
 function setStatus(kind, text) {
   statusDot.className = "dot " + kind;
   statusText.textContent = text;
 }
 
-
 function formatEur(value) {
-
   const number = Number(value);
 
   if (!Number.isFinite(number)) {
@@ -94,9 +81,7 @@ function formatEur(value) {
   }) + " €";
 }
 
-
 function formatNumber(value) {
-
   const number = Number(value);
 
   if (!Number.isFinite(number)) {
@@ -109,9 +94,7 @@ function formatNumber(value) {
   });
 }
 
-
 function formatDate(value) {
-
   if (!value) {
     return "—";
   }
@@ -128,106 +111,66 @@ function formatDate(value) {
   });
 }
 
-
-// ---------------------------------------------------------
-// RECEIPT PREVIEW
-// ---------------------------------------------------------
-
 function showReceipt(data) {
-
   currentResult = {
     Status: data.Status || "—",
     ZOI: data.ZOI || "—",
     EOR: data.EOR || "—"
   };
 
+  const amount = Number(currentPayload.amount);
 
-  const amount =
-    Number(currentPayload.amount);
+  const vat = Number.isFinite(amount)
+    ? amount - amount / 1.22
+    : 0;
 
-
-  const vat =
-    Number.isFinite(amount)
-      ? amount - amount / 1.22
-      : 0;
-
-
-  receiptPlaceholder.style.display =
-    "none";
-
-  receiptContent.style.display =
-    "block";
-
+  receiptPlaceholder.style.display = "none";
+  receiptContent.style.display = "block";
 
   receiptInvoiceId.textContent =
     currentPayload.invoiceId || "—";
 
-
   receiptDate.textContent =
     formatDate(currentPayload.timestamp);
-
 
   receiptPremise.textContent =
     currentPayload.premiseId || "—";
 
-
   receiptDevice.textContent =
     currentPayload.deviceId || "—";
-
 
   receiptTaxNumber.textContent =
     currentPayload.taxNumber || "—";
 
-
   receiptAmount.textContent =
     formatEur(amount);
-
 
   receiptVat.textContent =
     formatEur(vat);
 
-
   receiptTotal.textContent =
     formatEur(amount);
-
 
   receiptStatus.textContent =
     currentResult.Status;
 
-
   receiptZoi.textContent =
     currentResult.ZOI;
 
-
   receiptEor.textContent =
     currentResult.EOR;
-
 
   receiptStatusBadge.textContent =
     data.Status === "CONFIRMED"
       ? "DAVČNO POTRJENO"
       : "NAPAKA PRI FISKALIZACIJI";
 
-
-  downloadPdfBtn.style.display =
-    "block";
-
-  downloadNote.style.display =
-    "block";
+  downloadPdfBtn.style.display = "block";
+  downloadNote.style.display = "block";
 }
 
-
-// ---------------------------------------------------------
-// POLLING STATUS
-// ---------------------------------------------------------
-
-async function pollStatus(
-  invoiceId,
-  attempt = 0
-) {
-
+async function pollStatus(invoiceId, attempt = 0) {
   if (attempt > 25) {
-
     setStatus(
       "error",
       "Ni odgovora — preveri Event Mesh in loge aplikacije."
@@ -238,108 +181,71 @@ async function pollStatus(
     return;
   }
 
-
   try {
-
     const response =
       await fetch(
         "/ui/api/status/" +
         encodeURIComponent(invoiceId)
       );
 
-
     const data =
       await response.json();
 
-
-    // ---------------------------------------------
-    // CONFIRMED
-    // ---------------------------------------------
-
     if (data.Status === "CONFIRMED") {
-
       setStatus(
         "confirmed",
         "Fiskalizacija potrjena"
       );
 
-
       outZoi.textContent =
         data.ZOI || "—";
-
 
       outEor.textContent =
         data.EOR || "—";
 
-
       showReceipt(data);
 
-
-      submitBtn.disabled =
-        false;
-
+      submitBtn.disabled = false;
 
       return;
     }
 
-
-    // ---------------------------------------------
-    // ERROR
-    // ---------------------------------------------
-
     if (data.Status === "ERROR") {
-
       setStatus(
         "error",
         "Fiskalizacija je vrnila napako"
       );
 
-
       outZoi.textContent =
         data.ZOI || "—";
-
 
       outEor.textContent =
         data.EOR || "—";
 
-
       showReceipt(data);
 
-
-      submitBtn.disabled =
-        false;
-
+      submitBtn.disabled = false;
 
       return;
     }
 
   } catch (error) {
-
     console.warn(
       "Napaka pri preverjanju statusa:",
       error
     );
   }
 
-
-  // ---------------------------------------------
-  // TRY AGAIN
-  // ---------------------------------------------
-
   pollTimer =
     setTimeout(
-      () => pollStatus(
-        invoiceId,
-        attempt + 1
-      ),
+      () =>
+        pollStatus(
+          invoiceId,
+          attempt + 1
+        ),
       1200
     );
 }
-
-
-// ---------------------------------------------------------
-// SEND INVOICE
-// ---------------------------------------------------------
 
 submitBtn.addEventListener(
   "click",
@@ -347,44 +253,27 @@ submitBtn.addEventListener(
 
     clearTimeout(pollTimer);
 
+    submitBtn.disabled = true;
 
-    submitBtn.disabled =
-      true;
+    result.style.display = "block";
 
-
-    result.style.display =
-      "block";
-
-
-    outZoi.textContent =
-      "—";
-
-    outEor.textContent =
-      "—";
-
+    outZoi.textContent = "—";
+    outEor.textContent = "—";
 
     setStatus(
       "pending",
       "Pošiljam na Event Mesh …"
     );
 
-
-    // ---------------------------------------------
-    // CREATE PAYLOAD
-    // ---------------------------------------------
-
     const payload = {
-
       invoiceId:
         invoiceIdInput.value.trim(),
-
 
       taxNumber:
         document
           .getElementById("taxNumber")
           .value
           .trim(),
-
 
       amount:
         parseFloat(
@@ -393,13 +282,11 @@ submitBtn.addEventListener(
             .value
         ),
 
-
       premiseId:
         document
           .getElementById("premiseId")
           .value
           .trim(),
-
 
       deviceId:
         document
@@ -407,25 +294,16 @@ submitBtn.addEventListener(
           .value
           .trim(),
 
-
       timestamp:
         new Date().toISOString()
     };
 
-
-    currentPayload =
-      payload;
-
-
-    currentResult =
-      null;
-
+    currentPayload = payload;
+    currentResult = null;
 
     outInvoiceId.textContent =
       payload.invoiceId;
 
-
-    // Hide previous result
     downloadPdfBtn.style.display =
       "none";
 
@@ -437,11 +315,6 @@ submitBtn.addEventListener(
 
     receiptPlaceholder.style.display =
       "flex";
-
-
-    // ---------------------------------------------
-    // SEND TO BACKEND
-    // ---------------------------------------------
 
     try {
 
@@ -461,19 +334,16 @@ submitBtn.addEventListener(
           }
         );
 
-
       if (!response.ok) {
         throw new Error(
           "Napaka pri pošiljanju računa."
         );
       }
 
-
       setStatus(
         "pending",
         "V obdelavi (Event Mesh → FURS) …"
       );
-
 
       pollStatus(
         payload.invoiceId
@@ -483,54 +353,105 @@ submitBtn.addEventListener(
 
       console.error(error);
 
-
       setStatus(
         "error",
         "Napaka pri pošiljanju na Event Mesh"
       );
 
-
-      submitBtn.disabled =
-        false;
+      submitBtn.disabled = false;
     }
   }
 );
 
+const FONT_REGULAR_URL =
+  "https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSans/NotoSans-Regular.ttf";
 
-// =========================================================
-// PDF
-// =========================================================
-//
-// PDF se generira kot pravi A4 poslovni račun.
-// Ne pretvarjamo HTML predogleda v PDF.
-//
-// Potrebna knjižnica v index.html:
-//
-// <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-//
+const FONT_BOLD_URL =
+  "https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSans/NotoSans-Bold.ttf";
 
+let pdfFonts = null;
 
-// ---------------------------------------------------------
-// LOAD ITELIS LOGO
-// ---------------------------------------------------------
+async function fetchFontAsBase64(url) {
+
+  const response =
+    await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(
+      "Ni mogoče naložiti PDF pisave."
+    );
+  }
+
+  const buffer =
+    await response.arrayBuffer();
+
+  const bytes =
+    new Uint8Array(buffer);
+
+  let binary = "";
+
+  const chunkSize =
+    0x8000;
+
+  for (
+    let i = 0;
+    i < bytes.length;
+    i += chunkSize
+  ) {
+
+    binary +=
+      String.fromCharCode(
+        ...bytes.subarray(
+          i,
+          Math.min(
+            i + chunkSize,
+            bytes.length
+          )
+        )
+      );
+  }
+
+  return btoa(binary);
+}
+
+async function loadPdfFonts() {
+
+  if (pdfFonts) {
+    return pdfFonts;
+  }
+
+  const fonts =
+    await Promise.all([
+      fetchFontAsBase64(
+        FONT_REGULAR_URL
+      ),
+
+      fetchFontAsBase64(
+        FONT_BOLD_URL
+      )
+    ]);
+
+  pdfFonts = {
+    regular: fonts[0],
+    bold: fonts[1]
+  };
+
+  return pdfFonts;
+}
 
 async function loadLogo() {
 
   const response =
     await fetch("./itelis.jpg");
 
-
   if (!response.ok) {
-
     throw new Error(
       "ITELIS logotipa ni bilo mogoče naložiti."
     );
   }
 
-
   const blob =
     await response.blob();
-
 
   return new Promise(
     (resolve, reject) => {
@@ -538,26 +459,52 @@ async function loadLogo() {
       const reader =
         new FileReader();
 
-
       reader.onload =
         () => resolve(
           reader.result
         );
 
-
       reader.onerror =
         reject;
-
 
       reader.readAsDataURL(blob);
     }
   );
 }
 
+async function getImageDimensions(dataUrl) {
 
-// ---------------------------------------------------------
-// PDF TEXT HELPER
-// ---------------------------------------------------------
+  return new Promise(
+    (resolve, reject) => {
+
+      const image =
+        new Image();
+
+      image.onload =
+        () => {
+
+          resolve({
+            width:
+              image.naturalWidth,
+
+            height:
+              image.naturalHeight
+          });
+        };
+
+      image.onerror =
+        () =>
+          reject(
+            new Error(
+              "Dimenzij logotipa ni mogoče prebrati."
+            )
+          );
+
+      image.src =
+        dataUrl;
+    }
+  );
+}
 
 function pdfText(
   doc,
@@ -571,26 +518,22 @@ function pdfText(
 ) {
 
   doc.setFont(
-    "helvetica",
+    "NotoSans",
     bold
       ? "bold"
       : "normal"
   );
 
-
   doc.setFontSize(size);
-
 
   const options = {
     align: align
   };
 
-
   if (maxWidth) {
     options.maxWidth =
       maxWidth;
   }
-
 
   doc.text(
     String(text),
@@ -599,11 +542,6 @@ function pdfText(
     options
   );
 }
-
-
-// ---------------------------------------------------------
-// PDF LINE
-// ---------------------------------------------------------
 
 function pdfLine(
   doc,
@@ -619,11 +557,9 @@ function pdfLine(
     150
   );
 
-
   doc.setLineWidth(
     0.25
   );
-
 
   doc.line(
     x1,
@@ -633,16 +569,7 @@ function pdfLine(
   );
 }
 
-
-// ---------------------------------------------------------
-// CREATE PDF
-// ---------------------------------------------------------
-
 async function createInvoicePdf() {
-
-  // ---------------------------------------------
-  // CHECK DATA
-  // ---------------------------------------------
 
   if (
     !currentPayload ||
@@ -656,83 +583,88 @@ async function createInvoicePdf() {
     return;
   }
 
-
-  // ---------------------------------------------
-  // CHECK jsPDF
-  // ---------------------------------------------
-
   if (
     !window.jspdf ||
     !window.jspdf.jsPDF
   ) {
 
     alert(
-      "PDF knjižnice ni mogoče naložiti. Preveri internetno povezavo oziroma CDN povezavo za jsPDF."
+      "PDF knjižnice ni mogoče naložiti. Preveri internetno povezavo."
     );
 
     return;
   }
 
-
-  const {
-    jsPDF
-  } =
-    window.jspdf;
-
-
-  // ---------------------------------------------
-  // CREATE A4
-  // ---------------------------------------------
-
-  const doc =
-    new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-      compress: true
-    });
-
-
-  const pageWidth =
-    210;
-
-
-  const margin =
-    18;
-
-
-  const right =
-    pageWidth - margin;
-
-
-  const amount =
-    Number(
-      currentPayload.amount
-    ) || 0;
-
-
-  // Input amount is treated as gross.
-  const net =
-    amount / 1.22;
-
-
-  const vat =
-    amount - net;
-
-
   downloadPdfBtn.disabled =
     true;
-
 
   downloadPdfBtn.textContent =
     "Pripravljam PDF …";
 
-
   try {
 
-    // =====================================================
-    // COMPANY HEADER
-    // =====================================================
+    const fonts =
+      await loadPdfFonts();
+
+    const {
+      jsPDF
+    } =
+      window.jspdf;
+
+    const doc =
+      new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true
+      });
+
+    doc.addFileToVFS(
+      "NotoSans-Regular.ttf",
+      fonts.regular
+    );
+
+    doc.addFont(
+      "NotoSans-Regular.ttf",
+      "NotoSans",
+      "normal"
+    );
+
+    doc.addFileToVFS(
+      "NotoSans-Bold.ttf",
+      fonts.bold
+    );
+
+    doc.addFont(
+      "NotoSans-Bold.ttf",
+      "NotoSans",
+      "bold"
+    );
+
+    doc.setFont(
+      "NotoSans",
+      "normal"
+    );
+
+    const pageWidth =
+      210;
+
+    const margin =
+      18;
+
+    const right =
+      pageWidth - margin;
+
+    const amount =
+      Number(
+        currentPayload.amount
+      ) || 0;
+
+    const net =
+      amount / 1.22;
+
+    const vat =
+      amount - net;
 
     pdfText(
       doc,
@@ -743,14 +675,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "Cesta na Brdo 123",
       margin,
       28
     );
-
 
     pdfText(
       doc,
@@ -759,14 +689,12 @@ async function createInvoicePdf() {
       33
     );
 
-
     pdfText(
       doc,
       "Slovenija",
       margin,
       38
     );
-
 
     pdfText(
       doc,
@@ -776,7 +704,6 @@ async function createInvoicePdf() {
       43
     );
 
-
     pdfText(
       doc,
       "Matična številka: 0000000000",
@@ -784,24 +711,53 @@ async function createInvoicePdf() {
       48
     );
 
-
-    // =====================================================
-    // ITELIS LOGO
-    // =====================================================
-
     try {
 
       const logo =
         await loadLogo();
 
+      const dimensions =
+        await getImageDimensions(
+          logo
+        );
+
+      const desiredWidth =
+        48;
+
+      const originalRatio =
+        dimensions.height /
+        dimensions.width;
+
+      let logoWidth =
+        desiredWidth;
+
+      let logoHeight =
+        logoWidth *
+        originalRatio;
+
+      const maxHeight =
+        22;
+
+      if (
+        logoHeight >
+        maxHeight
+      ) {
+
+        logoHeight =
+          maxHeight;
+
+        logoWidth =
+          logoHeight /
+          originalRatio;
+      }
 
       doc.addImage(
         logo,
         "JPEG",
-        143,
-        17,
-        49,
-        17
+        right - logoWidth,
+        16,
+        logoWidth,
+        logoHeight
       );
 
     } catch (error) {
@@ -812,7 +768,6 @@ async function createInvoicePdf() {
       );
     }
 
-
     pdfLine(
       doc,
       margin,
@@ -820,11 +775,6 @@ async function createInvoicePdf() {
       right,
       56
     );
-
-
-    // =====================================================
-    // INVOICE TITLE
-    // =====================================================
 
     pdfText(
       doc,
@@ -834,7 +784,6 @@ async function createInvoicePdf() {
       23,
       true
     );
-
 
     pdfText(
       doc,
@@ -846,18 +795,11 @@ async function createInvoicePdf() {
       true
     );
 
-
-    // =====================================================
-    // INVOICE META
-    // =====================================================
-
     const metaX =
       126;
 
-
     const metaValueX =
       161;
-
 
     pdfText(
       doc,
@@ -868,14 +810,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "Ljubljana",
       metaValueX,
       67
     );
-
 
     pdfText(
       doc,
@@ -886,7 +826,6 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       formatDate(
@@ -895,7 +834,6 @@ async function createInvoicePdf() {
       metaValueX,
       73
     );
-
 
     pdfText(
       doc,
@@ -906,14 +844,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       currentPayload.premiseId,
       metaValueX,
       79
     );
-
 
     pdfText(
       doc,
@@ -924,18 +860,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       currentPayload.deviceId,
       metaValueX,
       85
     );
-
-
-    // =====================================================
-    // PARTIES
-    // =====================================================
 
     pdfText(
       doc,
@@ -946,14 +876,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "ITELIS d.o.o.",
       margin,
       107
     );
-
 
     pdfText(
       doc,
@@ -962,7 +890,6 @@ async function createInvoicePdf() {
       112
     );
 
-
     pdfText(
       doc,
       "1000 Ljubljana",
@@ -970,14 +897,12 @@ async function createInvoicePdf() {
       117
     );
 
-
     pdfText(
       doc,
       "Slovenija",
       margin,
       122
     );
-
 
     pdfText(
       doc,
@@ -988,14 +913,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "Testni kupec",
       105,
       107
     );
-
 
     pdfText(
       doc,
@@ -1004,7 +927,6 @@ async function createInvoicePdf() {
       112
     );
 
-
     pdfText(
       doc,
       "1000 Ljubljana",
@@ -1012,14 +934,12 @@ async function createInvoicePdf() {
       117
     );
 
-
     pdfText(
       doc,
       "Slovenija",
       105,
       122
     );
-
 
     pdfText(
       doc,
@@ -1029,29 +949,20 @@ async function createInvoicePdf() {
       127
     );
 
-
-    // =====================================================
-    // ITEMS TABLE
-    // =====================================================
-
     const tableTop =
       139;
-
 
     const colQuantity =
       126;
 
-
     const colPrice =
       159;
-
 
     doc.setFillColor(
       239,
       240,
       241
     );
-
 
     doc.rect(
       margin,
@@ -1061,7 +972,6 @@ async function createInvoicePdf() {
       "F"
     );
 
-
     pdfText(
       doc,
       "Opis storitve / blaga",
@@ -1070,7 +980,6 @@ async function createInvoicePdf() {
       9,
       true
     );
-
 
     pdfText(
       doc,
@@ -1082,7 +991,6 @@ async function createInvoicePdf() {
       "center"
     );
 
-
     pdfText(
       doc,
       "Cena (EUR)",
@@ -1092,7 +1000,6 @@ async function createInvoicePdf() {
       true,
       "right"
     );
-
 
     pdfText(
       doc,
@@ -1104,7 +1011,6 @@ async function createInvoicePdf() {
       "right"
     );
 
-
     pdfLine(
       doc,
       margin,
@@ -1113,7 +1019,6 @@ async function createInvoicePdf() {
       tableTop + 3
     );
 
-
     pdfText(
       doc,
       "Testni račun / storitev",
@@ -1121,7 +1026,6 @@ async function createInvoicePdf() {
       tableTop + 12,
       9
     );
-
 
     pdfText(
       doc,
@@ -1133,7 +1037,6 @@ async function createInvoicePdf() {
       "center"
     );
 
-
     pdfText(
       doc,
       formatNumber(net),
@@ -1143,7 +1046,6 @@ async function createInvoicePdf() {
       false,
       "right"
     );
-
 
     pdfText(
       doc,
@@ -1155,7 +1057,6 @@ async function createInvoicePdf() {
       "right"
     );
 
-
     pdfLine(
       doc,
       margin,
@@ -1164,18 +1065,11 @@ async function createInvoicePdf() {
       tableTop + 17
     );
 
-
-    // =====================================================
-    // TOTALS
-    // =====================================================
-
     const summaryX =
       124;
 
-
     let y =
       168;
-
 
     pdfText(
       doc,
@@ -1185,7 +1079,6 @@ async function createInvoicePdf() {
       10,
       true
     );
-
 
     pdfText(
       doc,
@@ -1197,9 +1090,7 @@ async function createInvoicePdf() {
       "right"
     );
 
-
     y += 7;
-
 
     pdfText(
       doc,
@@ -1207,7 +1098,6 @@ async function createInvoicePdf() {
       summaryX,
       y
     );
-
 
     pdfText(
       doc,
@@ -1219,7 +1109,6 @@ async function createInvoicePdf() {
       "right"
     );
 
-
     pdfLine(
       doc,
       summaryX,
@@ -1228,9 +1117,7 @@ async function createInvoicePdf() {
       y + 4
     );
 
-
     y += 13;
-
 
     pdfText(
       doc,
@@ -1240,7 +1127,6 @@ async function createInvoicePdf() {
       13,
       true
     );
-
 
     pdfText(
       doc,
@@ -1252,13 +1138,7 @@ async function createInvoicePdf() {
       "right"
     );
 
-
-    // =====================================================
-    // PAYMENT
-    // =====================================================
-
     y += 18;
-
 
     pdfLine(
       doc,
@@ -1267,7 +1147,6 @@ async function createInvoicePdf() {
       right,
       y - 5
     );
-
 
     pdfText(
       doc,
@@ -1278,14 +1157,12 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "Način plačila: Gotovina",
       margin,
       y + 9
     );
-
 
     pdfText(
       doc,
@@ -1295,7 +1172,6 @@ async function createInvoicePdf() {
       y + 15
     );
 
-
     pdfText(
       doc,
       "Ostane za plačilo: 0,00 €",
@@ -1303,14 +1179,8 @@ async function createInvoicePdf() {
       y + 21
     );
 
-
-    // =====================================================
-    // FISCALIZATION
-    // =====================================================
-
     const fiscalTop =
       y + 34;
-
 
     doc.setFillColor(
       250,
@@ -1318,13 +1188,11 @@ async function createInvoicePdf() {
       250
     );
 
-
     doc.setDrawColor(
       150,
       150,
       150
     );
-
 
     doc.rect(
       margin,
@@ -1333,7 +1201,6 @@ async function createInvoicePdf() {
       38,
       "FD"
     );
-
 
     pdfText(
       doc,
@@ -1344,7 +1211,6 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "Status:",
@@ -1353,7 +1219,6 @@ async function createInvoicePdf() {
       10,
       true
     );
-
 
     pdfText(
       doc,
@@ -1364,7 +1229,6 @@ async function createInvoicePdf() {
       true
     );
 
-
     pdfText(
       doc,
       "ZOI:",
@@ -1373,7 +1237,6 @@ async function createInvoicePdf() {
       10,
       true
     );
-
 
     pdfText(
       doc,
@@ -1386,7 +1249,6 @@ async function createInvoicePdf() {
       137
     );
 
-
     pdfText(
       doc,
       "EOR:",
@@ -1395,7 +1257,6 @@ async function createInvoicePdf() {
       10,
       true
     );
-
 
     pdfText(
       doc,
@@ -1408,11 +1269,6 @@ async function createInvoicePdf() {
       137
     );
 
-
-    // =====================================================
-    // FOOTER
-    // =====================================================
-
     pdfLine(
       doc,
       margin,
@@ -1420,7 +1276,6 @@ async function createInvoicePdf() {
       right,
       270
     );
-
 
     pdfText(
       doc,
@@ -1432,7 +1287,6 @@ async function createInvoicePdf() {
       "center"
     );
 
-
     pdfText(
       doc,
       "Račun je bil davčno potrjen v skladu z ZDavPR.",
@@ -1442,7 +1296,6 @@ async function createInvoicePdf() {
       false,
       "center"
     );
-
 
     pdfText(
       doc,
@@ -1454,14 +1307,12 @@ async function createInvoicePdf() {
       "center"
     );
 
-
-    // =====================================================
-    // DOWNLOAD
-    // =====================================================
-
     doc.save(
       "racun-" +
-      (currentPayload.invoiceId || "test") +
+      (
+        currentPayload.invoiceId ||
+        "test"
+      ) +
       ".pdf"
     );
 
@@ -1472,9 +1323,9 @@ async function createInvoicePdf() {
       error
     );
 
-
     alert(
-      "Pri ustvarjanju PDF-ja je prišlo do napake."
+      "Pri ustvarjanju PDF-ja je prišlo do napake: " +
+      error.message
     );
 
   } finally {
@@ -1482,16 +1333,11 @@ async function createInvoicePdf() {
     downloadPdfBtn.disabled =
       false;
 
-
     downloadPdfBtn.textContent =
       "↓ Prenesi račun kot PDF";
   }
 }
 
-
-// ---------------------------------------------------------
-// PDF BUTTON
-// ---------------------------------------------------------
 
 downloadPdfBtn.addEventListener(
   "click",
