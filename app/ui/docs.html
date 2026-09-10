@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API dokumentacija — davčne blagajne (testno okolje)</title>
+<style>
+  :root {
+    --bg: #12151a;
+    --surface: #1a1e25;
+    --surface-2: #21262f;
+    --border: #2c323d;
+    --text: #e7e9ec;
+    --text-muted: #8b919d;
+    --accent: #4fb0a5;
+    --get: #4fae72;
+    --post: #d9a441;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+  }
+  main { width: 100%; max-width: 640px; }
+  .eyebrow { color: var(--text-muted); font-size: 13px; margin: 0 0 4px; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 8px; }
+  .lede { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin: 0 0 36px; }
+  a.back { color: var(--accent); text-decoration: none; font-size: 13px; }
+  a.back:hover { text-decoration: underline; }
+
+  h2 { font-size: 15px; font-weight: 500; margin: 40px 0 14px; color: var(--text-muted); }
+  ol.flow { padding-left: 20px; margin: 0 0 36px; }
+  ol.flow li { font-size: 14px; line-height: 1.8; }
+  ol.flow code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+  .endpoint {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .endpoint-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .method {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: #0c1210;
+  }
+  .method.get { background: var(--get); }
+  .method.post { background: var(--post); }
+  .path { font-family: var(--mono); font-size: 14px; }
+  .desc { font-size: 13.5px; color: var(--text-muted); line-height: 1.6; margin: 0 0 14px; }
+  .block-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 14px 0 6px; }
+  pre {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin: 0;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .params { font-size: 13px; }
+  .params .p { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--border); }
+  .params .p:first-child { border-top: none; }
+  .params .name { font-family: var(--mono); color: var(--accent); min-width: 90px; }
+  .params .type { color: var(--text-muted); min-width: 60px; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Itelis · davčne blagajne</p>
+  <h1>API dokumentacija</h1>
+  <p class="lede">Pregled endpointov, ki jih uporablja testna stran <code>/ui/index.html</code>, in kako si sledijo od klika na gumb do prikaza ZOI/EOR.</p>
+  <a class="back" href="./index.html">← nazaj na testno stran</a>
+
+  <h2>Potek delovanja</h2>
+  <ol class="flow">
+    <li>Uporabnik izpolni podatke dummy računa in klikne <em>"Pošlji račun preko Event Mesh"</em>.</li>
+    <li>Stran pokliče <code>POST /ui/api/emit</code>, ki objavi sporočilo na topic <code>invoice/created</code> v SAP Event Mesh.</li>
+    <li>CAP aplikacija (<code>subscriber.js</code>) sporočilo prejme in sproži <code>fiscalization-service.js</code>.</li>
+    <li>Servis pokliče FURS, prejme ZOI in EOR ter ju shrani v SAP HANA Cloud.</li>
+    <li>Stran medtem vsakih 1,2 s poizveduje <code>GET /ui/api/status/:invoiceId</code>, dokler status ni <code>CONFIRMED</code> ali <code>ERROR</code>.</li>
+    <li>Ko je status znan, stran izpiše ZOI, EOR in status v berljivi obliki.</li>
+  </ol>
+
+  <h2>Endpointi</h2>
+
+  <div class="endpoint">
+    <div class="endpoint-head">
+      <span class="method get">GET</span>
+      <span class="path">/ui/index.html</span>
+    </div>
+    <p class="desc">Postreže glavno testno stran (statična datoteka, brez logike na strežniku).</p>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-head">
+      <span class="method post">POST</span>
+      <span class="path">/ui/api/emit</span>
+    </div>
+    <p class="desc">Objavi testni dogodek na SAP Event Mesh, topic <code>invoice/created</code>. Ne čaka na rezultat fiskalizacije — samo potrdi, da je bilo sporočilo oddano.</p>
+
+    <div class="block-label">Request body (application/json)</div>
+    <pre>{
+  "invoiceId": "482913",
+  "taxNumber": "10698655",
+  "amount": 250.75,
+  "premiseId": "POS1",
+  "deviceId": "DEV1",
+  "timestamp": "2026-09-10T09:15:00.000Z"
+}</pre>
+
+    <div class="block-label">Response 202</div>
+    <pre>{ "ok": true }</pre>
+
+    <div class="block-label">Response 500</div>
+    <pre>{ "ok": false, "error": "..." }</pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-head">
+      <span class="method get">GET</span>
+      <span class="path">/ui/api/status/:invoiceId</span>
+    </div>
+    <p class="desc">Prebere trenutni status računa neposredno preko akcije <code>status</code> na <code>fisc.FiscalizationService</code>. Kliče se ponavljajoče (polling), dokler fiskalizacija ni zaključena.</p>
+
+    <div class="block-label">Path parametri</div>
+    <div class="params">
+      <div class="p"><span class="name">invoiceId</span><span class="type">string</span><span>ID računa, poslan v /ui/api/emit</span></div>
+    </div>
+
+    <div class="block-label">Response 200 — v obdelavi</div>
+    <pre>{ "Status": "PENDING", "ZOI": "6557229d...", "EOR": null }</pre>
+
+    <div class="block-label">Response 200 — zaključeno</div>
+    <pre>{
+  "Status": "CONFIRMED",
+  "ZOI": "6557229d3af1a54ddbe79074e8478ec6",
+  "EOR": "99996046-8c65-41dc-9403-f6c3def4384d"
+}</pre>
+  </div>
+
+  <h2>Opomba</h2>
+  <p class="desc">Ta dokumentacija je statična (ročno vzdrževana stran), ne generirana iz OpenAPI/Swagger specifikacije — za tak namen je namenjena kot hiter interni pregled, ne kot formalna API pogodba.</p>
+</main>
+</body>
+</html>

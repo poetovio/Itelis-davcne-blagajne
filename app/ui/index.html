@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Davčne blagajne — testno okolje</title>
+<style>
+  :root {
+    --bg: #12151a;
+    --surface: #1a1e25;
+    --surface-2: #21262f;
+    --border: #2c323d;
+    --text: #e7e9ec;
+    --text-muted: #8b919d;
+    --accent: #4fb0a5;
+    --accent-dim: #2f665f;
+    --amber: #d9a441;
+    --red: #d9634f;
+    --green: #4fae72;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px;
+  }
+  main { width: 100%; max-width: 520px; }
+  .eyebrow {
+    color: var(--text-muted);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    margin: 0 0 4px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0 0 32px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--mono);
+    padding: 9px 11px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 12px; }
+  .row .field { flex: 1; }
+  button {
+    width: 100%;
+    margin-top: 20px;
+    background: var(--accent);
+    color: #0c1210;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px;
+    cursor: pointer;
+  }
+  button:disabled { background: var(--accent-dim); color: var(--text-muted); cursor: default; }
+  #result { display: none; }
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.pending { background: var(--amber); animation: pulse 1.2s ease-in-out infinite; }
+  .dot.confirmed { background: var(--green); }
+  .dot.error { background: var(--red); }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .kv { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid var(--border); }
+  .kv:first-of-type { border-top: none; }
+  .kv .k { font-size: 12px; color: var(--text-muted); flex-shrink: 0; padding-top: 2px; }
+  .kv .v { font-family: var(--mono); font-size: 13px; text-align: right; word-break: break-all; }
+  .hint { color: var(--text-muted); font-size: 13px; line-height: 1.6; margin-bottom: 12px; }
+  .docs-link { font-size: 13px; }
+  .docs-link a { color: var(--accent); text-decoration: none; }
+  .docs-link a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Itelis · davčne blagajne</p>
+  <h1>Testni prikaz fiskalizacije</h1>
+
+  <div class="card">
+    <div class="field">
+      <label for="invoiceId">Št. računa</label>
+      <input id="invoiceId" type="text">
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="taxNumber">Davčna številka</label>
+        <input id="taxNumber" type="text" value="10698655">
+      </div>
+      <div class="field">
+        <label for="amount">Znesek (EUR)</label>
+        <input id="amount" type="text" value="250.75">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="premiseId">Poslovni prostor</label>
+        <input id="premiseId" type="text" value="POS1">
+      </div>
+      <div class="field">
+        <label for="deviceId">Elektronska naprava</label>
+        <input id="deviceId" type="text" value="DEV1">
+      </div>
+    </div>
+    <button id="submitBtn">Pošlji račun preko Event Mesh</button>
+  </div>
+
+  <div class="card" id="result">
+    <div class="status-line">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Čakam na odgovor …</span>
+    </div>
+    <div class="kv"><span class="k">Št. računa</span><span class="v" id="outInvoiceId">—</span></div>
+    <div class="kv"><span class="k">ZOI</span><span class="v" id="outZoi">—</span></div>
+    <div class="kv"><span class="k">EOR</span><span class="v" id="outEor">—</span></div>
+  </div>
+
+  <p class="hint">Gumb objavi testni dogodek na topic <code>invoice/created</code> v SAP Event Mesh. CAP aplikacija ga prejme, pokliče FURS in rezultat shrani v SAP HANA Cloud — ta stran ga nato prebere preko servisa.</p>
+  <p class="docs-link"><a href="./docs.html">→ API dokumentacija te strani</a></p>
+</main>
+
+<script>
+  const invoiceIdInput = document.getElementById('invoiceId');
+  invoiceIdInput.value = String(Date.now()).slice(-6);
+
+  const submitBtn = document.getElementById('submitBtn');
+  const result = document.getElementById('result');
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const outInvoiceId = document.getElementById('outInvoiceId');
+  const outZoi = document.getElementById('outZoi');
+  const outEor = document.getElementById('outEor');
+
+  let pollTimer = null;
+
+  function setStatus(kind, text) {
+    statusDot.className = 'dot ' + kind;
+    statusText.textContent = text;
+  }
+
+  async function pollStatus(invoiceId, attempt = 0) {
+    if (attempt > 25) {
+      setStatus('error', 'Ni odgovora — preveri Event Mesh in loge aplikacije.');
+      submitBtn.disabled = false;
+      return;
+    }
+    try {
+      const res = await fetch('/ui/api/status/' + encodeURIComponent(invoiceId));
+      const data = await res.json();
+
+      if (data.Status === 'CONFIRMED') {
+        setStatus('confirmed', 'Fiskalizacija potrjena');
+        outZoi.textContent = data.ZOI || '—';
+        outEor.textContent = data.EOR || '—';
+        submitBtn.disabled = false;
+        return;
+      }
+      if (data.Status === 'ERROR') {
+        setStatus('error', 'Fiskalizacija je vrnila napako');
+        outZoi.textContent = data.ZOI || '—';
+        submitBtn.disabled = false;
+        return;
+      }
+    } catch (_) {
+      // se nadaljuje s poizvedovanjem
+    }
+    pollTimer = setTimeout(() => pollStatus(invoiceId, attempt + 1), 1200);
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    clearTimeout(pollTimer);
+    submitBtn.disabled = true;
+    result.style.display = 'block';
+    outZoi.textContent = '—';
+    outEor.textContent = '—';
+    setStatus('pending', 'Pošiljam na Event Mesh …');
+
+    const payload = {
+      invoiceId: invoiceIdInput.value.trim(),
+      taxNumber: document.getElementById('taxNumber').value.trim(),
+      amount: parseFloat(document.getElementById('amount').value),
+      premiseId: document.getElementById('premiseId').value.trim(),
+      deviceId: document.getElementById('deviceId').value.trim(),
+      timestamp: new Date().toISOString()
+    };
+    outInvoiceId.textContent = payload.invoiceId;
+
+    try {
+      const res = await fetch('/ui/api/emit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('emit failed');
+
+      setStatus('pending', 'V obdelavi (Event Mesh → FURS) …');
+      pollStatus(payload.invoiceId);
+    } catch (err) {
+      setStatus('error', 'Napaka pri pošiljanju na Event Mesh');
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
