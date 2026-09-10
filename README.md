@@ -1,6 +1,6 @@
 # Itelis – Davčne blagajne
 
-CAP aplikacija za obdelavo računov in fiskalizacijo računov pri **FURS**. Aplikacija uporablja **SAP Event Mesh** za asinhrono izmenjavo sporočil in **SAP HANA Cloud** za trajno shranjevanje računov, odgovorov ter podatkov, povezanih s fiskalizacijo.
+CAP aplikacija za obdelavo računov in njihovo fiskalizacijo pri **FURS**. Aplikacija za asinhrono izmenjavo sporočil uporablja **SAP Event Mesh**, za trajno shranjevanje računov, fiskalizacijskih rezultatov in napak pa **SAP HANA Cloud**.
 
 Projekt je implementiran kot **SAP Cloud Application Programming Model (CAP)** aplikacija v Node.js.
 
@@ -8,72 +8,23 @@ Projekt je implementiran kot **SAP Cloud Application Programming Model (CAP)** a
 
 ## Arhitektura
 
-Glavni podatkovni tok aplikacije je:
+![Arhitektura fiskalizacijske rešitve](./architecture.svg)
 
-```text
-                    ┌─────────────────────┐
-                    │    SAP Event Mesh   │
-                    │                     │
-                    │ invoice/created     │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │    CAP aplikacija   │
-                    │                     │
-                    │  subscriber.js     │
-                    │  messaging.js      │
-                    │  fiscalization-    │
-                    │  service.js        │
-                    └──────────┬──────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    │                     │
-                    ▼                     ▼
-             ┌──────────────┐      ┌──────────────┐
-             │ SAP HANA      │      │     FURS     │
-             │ Cloud / HDI   │      │  fiskalizacija│
-             │ Container     │      │              │
-             └──────────────┘      └──────┬───────┘
-                                          │
-                                   ZOI + EOR + status
-                                          │
-                                          ▼
-                              ┌─────────────────────┐
-                              │    SAP HANA Cloud    │
-                              │                     │
-                              │ Invoice             │
-                              │ Response            │
-                              │ ErrorLog            │
-                              └─────────────────────┘
-                                          │
-                                          ▼
-                              ┌─────────────────────┐
-                              │    SAP Event Mesh   │
-                              │                     │
-                              │ fiscalization-      │
-                              │ results             │
-                              └─────────────────────┘
-```
+Sivi, prekinjeno obrobljeni bloki na vrhu predstavljajo možne prihodnje vire dogodka — trenutno se testni računi objavljajo ročno preko Event Mesh cockpita, v produkciji pa bi lahko isti dogodek sprožil kateri koli ERP vir (on-premise, RISE with SAP ali GROW with SAP), ne da bi bilo treba spreminjati logiko CAP aplikacije.
 
 ### Potek obdelave
 
-1. Zunanji sistem objavi račun na **SAP Event Mesh** topic.
-2. CAP aplikacija prejme sporočilo iz ustreznega queue-a.
-3. Podatki računa se obdelajo in shranijo v **SAP HANA Cloud**.
-4. Aplikacija izvede fiskalizacijo pri **FURS**.
-5. FURS vrne rezultat fiskalizacije, vključno z:
-   - statusom,
-   - **ZOI**,
-   - **EOR**,
-   - časom obdelave in drugimi relevantnimi podatki.
-6. Rezultat se shrani v SAP HANA Cloud.
-7. Rezultat fiskalizacije se objavi nazaj v **SAP Event Mesh**.
-8. Rezultat lahko odjemalec prebere iz rezultatnega queue-a.
+1. Izvorni sistem (ali testno orodje) objavi račun na topic `invoice/created` v **SAP Event Mesh**.
+2. CAP aplikacija (`subscriber.js`) prejme sporočilo iz ustreznega queue-a.
+3. `fiscalization-service.js` podatke obdela in pokliče **FURS** za fiskalizacijo.
+4. FURS vrne status, **ZOI**, **EOR** in dodatne podatke o obdelavi.
+5. Rezultat se skupaj z izvornim računom trajno shrani v **SAP HANA Cloud**.
+6. Šele nato se rezultat fiskalizacije objavi nazaj na **SAP Event Mesh** (topic `invoice/fiscalized`).
+7. Odjemalec prebere rezultat iz rezultatnega queue-a, ga preveri v Event Mesh cockpitu ali neposredno v HANA Database Exploreru.
 
 ---
 
-# Struktura projekta
+## Struktura projekta
 
 ```text
 Itelis-davcne-blagajne/
@@ -83,7 +34,6 @@ Itelis-davcne-blagajne/
 │
 ├── srv/
 │   ├── fiscalization-service.js
-│   ├── handler.js.bak
 │   ├── messaging.js
 │   ├── register-premise-test.js
 │   ├── results-listener.js
@@ -113,15 +63,9 @@ Itelis-davcne-blagajne/
 ├── env/
 │   └── .env1
 │
-├── .vscode/
-│   ├── launch.json
-│   └── tasks.json
-│
 ├── .cdsrc-private.json
 ├── .env
 ├── .gitignore
-├── cdsrc-private.json
-├── db.sqlite
 ├── default-env.json
 ├── em-params.json
 ├── manifest.yml
@@ -135,106 +79,53 @@ Itelis-davcne-blagajne/
 
 ---
 
-# Glavne mape in datoteke
-
-## `db/`
+## Glavne komponente
 
 ### `db/fiscal.cds`
 
-Glavni CDS podatkovni model aplikacije.
+Glavni CDS podatkovni model aplikacije. Definira entitete za račune (`Invoice`), fiskalizacijske odgovore (`Response`) in napake (`ErrorLog`). Ob deployu se iz modela generirajo ustrezni HANA artefakti.
 
-Model definira podatkovne entitete, ki se ob deployu pretvorijo v SAP HANA artefakte.
+### `srv/server.js`
 
-Med njimi so podatki za:
+Vstopna točka CAP strežnika — zažene aplikacijo in naloži definirane servise ter poslušalce sporočil.
 
-- račune (`Invoice`),
-- odgovore fiskalizacije (`Response`),
-- napake (`ErrorLog`).
+### `srv/subscriber.js`
 
-Na osnovi CDS modela se generirajo HANA tabele in pogledi.
+Obravnava vhodna sporočila iz SAP Event Mesh: sprejme dogodek o ustvarjenem računu in sproži nadaljnjo obdelavo.
 
----
+### `srv/messaging.js`
 
-## `srv/`
+Pomožna konfiguracija za komunikacijo s SAP Event Mesh preko CAP messaging vezave na Enterprise Messaging servis.
 
-V tej mapi je glavna poslovna logika aplikacije.
+### `srv/fiscalization-service.js`
 
-### `server.js`
+Osrednja poslovna logika: poveže prejeti račun s postopkom fiskalizacije pri FURS, shrani rezultat v bazo in ga objavi nazaj na Event Mesh.
 
-Vstopna točka CAP strežnika.
+### `srv/results-listener.js`
 
-Zažene CAP aplikacijo in naloži definirane servise ter subscriberje.
+Poslušalec rezultatnega toka sporočil fiskalizacije, uporaben za dodatno spremljanje ali posredovanje rezultatov.
 
-### `subscriber.js`
+### `srv/register-premise-test.js`
 
-Obravnava vhodna sporočila iz SAP Event Mesh.
-
-Njegova glavna naloga je sprejem sporočila o ustvarjenem računu in sprožitev nadaljnje obdelave.
-
-### `messaging.js`
-
-Konfiguracija oziroma pomoč pri komunikaciji s SAP Event Mesh.
-
-Uporablja CAP messaging konfiguracijo in vezavo na Enterprise Messaging servis.
-
-### `fiscalization-service.js`
-
-Glavna logika fiskalizacije.
-
-Povezuje sprejeti račun s postopkom fiskalizacije pri FURS ter obravnava rezultat.
-
-### `results-listener.js`
-
-Posluša oziroma obravnava rezultate fiskalizacije, ki se pojavijo na rezultatnem toku sporočil.
-
-### `register-premise-test.js`
-
-Testna logika za registracijo oziroma preverjanje poslovnega prostora za testno okolje.
+Testna logika za registracijo oz. preverjanje poslovnega prostora v testnem okolju.
 
 ---
 
-# FURS integracija
+## FURS integracija
 
-Mapa:
+Mapa `srv/furs/` vsebuje celotno logiko za komunikacijo s sistemom FURS:
 
-```text
-srv/furs/
-```
-
-vsebuje logiko za komunikacijo s sistemom FURS.
-
-### `furs-client.js`
-
-Implementacija komunikacije s FURS.
-
-### `certificate.js`
-
-Delo s certifikati, potrebnimi za komunikacijo s FURS.
-
-### `jws.js`
-
-Implementacija oziroma obdelava JWS podpisovanja podatkov.
-
-### `zoi.js`
-
-Logika za izračun oziroma delo z ZOI.
-
-### Testne datoteke
-
-```text
-test-certificate.js
-test-furs.js
-test-jws.js
-test-zoi.js
-```
-
-se uporabljajo za preverjanje posameznih delov FURS integracije.
+| Datoteka | Namen |
+|---|---|
+| `furs-client.js` | Implementacija HTTPS komunikacije s FURS |
+| `certificate.js` | Delo s certifikati, potrebnimi za avtentikacijo |
+| `jws.js` | Podpisovanje in dekodiranje JWS sporočil |
+| `zoi.js` | Izračun ZOI (zaščitne oznake izdajatelja) |
+| `test-*.js` | Testne datoteke za preverjanje posameznih delov integracije |
 
 ---
 
-# SAP Event Mesh
-
-Aplikacija uporablja **SAP Event Mesh** za asinhrono komunikacijo.
+## SAP Event Mesh
 
 Vhodni tok uporablja topic:
 
@@ -255,11 +146,7 @@ Primer testnega sporočila:
 }
 ```
 
-Aplikacija sporočilo prejme iz ustreznega Event Mesh queue-a.
-
-Po uspešni fiskalizaciji se rezultat objavi na rezultatni tok.
-
-Primer rezultata, ki ga je mogoče prejeti v Event Mesh:
+Po uspešni fiskalizaciji se rezultat objavi na rezultatni topic (`invoice/fiscalized`):
 
 ```json
 {
@@ -276,383 +163,162 @@ Primer rezultata, ki ga je mogoče prejeti v Event Mesh:
 }
 ```
 
-Pomembno je, da rezultat ni samo sporočilo za Event Mesh. Podatki o fiskalizaciji se hkrati trajno shranijo v SAP HANA Cloud.
+> Rezultat ni samo sporočilo za Event Mesh — podatki o fiskalizaciji se hkrati trajno shranijo v SAP HANA Cloud.
 
 ---
 
-# SAP HANA Cloud
+## SAP HANA Cloud
 
-Za podatkovno bazo se uporablja **SAP HANA Cloud** preko **HDI containerja**.
-
-Uporabljeni servisni instanci sta:
+Podatkovna baza teče na **SAP HANA Cloud** preko **HDI containerja**. Uporabljeni servisni instanci:
 
 ```text
-davcne-blagajne-hdi
-davcne-blagajne-test
+davcne-blagajne-hdi    # HDI container, preko katerega je aplikacija povezana na HANA
+davcne-blagajne-test   # osnovna HANA Cloud instanca
 ```
 
-`davcne-blagajne-hdi` predstavlja HDI container, aplikacija pa je preko njega povezana na HANA Cloud okolje.
-
-CDS konfiguracija uporablja:
+CDS konfiguracija:
 
 ```json
 "db": {
   "kind": "hana",
-  "model": [
-    "srv",
-    "db"
-  ]
+  "model": ["srv", "db"]
 }
 ```
 
-Uporablja se paket:
+Uporabljen paket: `@cap-js/hana`.
 
-```text
-@cap-js/hana
-```
+Iz `db/fiscal.cds` se generirajo naslednje HANA tabele in pripadajoči pogledi za CAP servis:
 
----
-
-## HANA tabele
-
-Iz `db/fiscal.cds` se generirajo HANA artefakti, med drugim:
-
-```text
-FISC_INVOICE
-FISC_RESPONSE
-FISC_ERRORLOG
-```
-
-in ustrezni pogledi za CAP servis.
-
-V `FISC_INVOICE` se hranijo podatki vhodnih računov.
-
-V `FISC_RESPONSE` se hranijo rezultati fiskalizacije, vključno z rezultatom FURS ter podatki, kot sta **ZOI** in **EOR**.
-
-`FISC_ERRORLOG` se uporablja za beleženje napak.
+| Tabela | Vsebina |
+|---|---|
+| `FISC_INVOICE` | Podatki vhodnih računov |
+| `FISC_RESPONSE` | Rezultati fiskalizacije, vključno z ZOI in EOR |
+| `FISC_ERRORLOG` | Beleženje napak pri obdelavi |
 
 ---
 
-# Lokalna povezava na HDI container
+## Razvojno okolje
 
-Za lokalni razvoj v SAP Business Application Studio ali drugem okolju se uporablja `cds bind`.
+### Vezava na HDI container
 
-Primer:
+Za lokalni razvoj (BAS ali drugo okolje) se uporablja `cds bind`:
 
 ```bash
 cds bind -2 davcne-blagajne-hdi --kind hana
 ```
 
-Nato lahko preverimo aktivno konfiguracijo:
+Aktivno konfiguracijo preverimo z:
 
 ```bash
 cds env get requires.db --profile hybrid
 ```
 
-Pri pravilni vezavi mora biti vidna konfiguracija tipa:
+Pri pravilni vezavi mora biti viden `kind: hana` in binding na `davcne-blagajne-hdi`.
 
-```text
-kind: hana
-```
-
-in binding na:
-
-```text
-davcne-blagajne-hdi
-```
-
----
-
-# Deploy podatkovnega modela
-
-Po uspešnem `cds bind` lahko CDS model deployamo v HDI container:
+### Deploy podatkovnega modela
 
 ```bash
 cds deploy --to hana --profile hybrid
 ```
 
-Uspešen deploy ustvari oziroma posodobi HANA artefakte na podlagi `db/fiscal.cds`.
+Uspešen deploy ustvari oz. posodobi HANA artefakte iz `db/fiscal.cds` (`fisc.Invoice`, `fisc.Response`, `fisc.ErrorLog` in ustrezne CDS view-e).
 
-Primer uspešnega deploya vključuje tabele:
-
-```text
-fisc.Invoice
-fisc.Response
-fisc.ErrorLog
-```
-
-ter ustrezne CDS view-e.
-
----
-
-# SAP Event Mesh binding
-
-Za lokalno uporabo Event Mesh storitve se uporablja `cds bind`.
-
-Primer:
+### Vezava na SAP Event Mesh
 
 ```bash
 cds bind -2 event_mesh --for messaging --kind enterprise-messaging-amqp
+cds bind -2 event_mesh --for fiscalization-results --kind enterprise-messaging-amqp
 ```
 
-Za rezultate fiskalizacije:
-
-```bash
-cds bind -2 event_mesh --for fiscalization-results \
-  --kind enterprise-messaging-amqp
-```
-
-Nato lahko aplikacijo zaženemo preko vezanih servisov.
-
-Primer:
+### Zagon v hybrid načinu
 
 ```bash
 cds bind --exec -- cds watch --profile hybrid
 ```
 
-S tem aplikacija uporablja Cloud Foundry service bindings namesto ročnega vnosa credentials v okolje.
+S tem aplikacija uporablja Cloud Foundry service bindings namesto ročno vnesenih credentials. Ob uspešnem zagonu se izpiše povezava `db > hana` s podatki o uporabljenem HDI containerju; za Event Mesh mora biti poleg baze pravilno vzpostavljena tudi messaging vezava.
 
 ---
 
-# Environment in konfiguracijske datoteke
+## Konfiguracijske datoteke
 
-Projekt vsebuje več konfiguracijskih datotek.
-
-## `.env`
-
-Lokalne okoljske spremenljivke.
-
-## `default-env.json`
-
-Lokalna simulacija oziroma podajanje okolja, podobnega Cloud Foundry okolju.
-
-## `.cdsrc-private.json`
-
-Lokalne CDS service bindings, ki jih ustvari `cds bind`.
-
-Ta datoteka lahko vsebuje podatke za dostop do Cloud Foundry servisov in je zato ne smemo po nepotrebnem objavljati.
-
-## `cdsrc-private.json`
-
-Projektna CDS konfiguracija za zasebne oziroma lokalne nastavitve.
-
-## `em-params.json`
-
-Parametri, povezani z uporabo SAP Event Mesh.
-
-## `env/.env1`
-
-Dodatna okoljska konfiguracija za lokalno okolje.
+| Datoteka | Namen |
+|---|---|
+| `.env` | Lokalne okoljske spremenljivke |
+| `default-env.json` | Lokalna simulacija Cloud Foundry okolja |
+| `.cdsrc-private.json` | Lokalne CDS service bindings, ki jih ustvari `cds bind` — **vsebuje dostopne podatke, ne objavljaj je** |
+| `em-params.json` | Parametri za uporabo SAP Event Mesh |
+| `env/.env1` | Dodatna okoljska konfiguracija |
 
 ---
 
-# Certifikati
+## Certifikati
 
-Mapa:
+Mapa `certificates/` vsebuje certifikate za komunikacijo s testnim okoljem FURS: FURS certifikate, CA chain, SIGOV certifikate, root certifikate in `.p12` datoteke.
+
+> **Opozorilo:** v produkcijskem Git repozitoriju se zasebnih ključev in produkcijskih certifikatov ne sme objavljati. Certifikate, namenjene zgolj lokalnemu testiranju, upravljaj ločeno in jih dodaj v `.gitignore`.
+
+---
+
+## Cloud Foundry
+
+Aplikacija teče v SAP BTP Cloud Foundry okolju. Trenutno testno okolje:
 
 ```text
-certificates/
+API:    https://api.cf.eu10-004.hana.ondemand.com
+Space:  BTP_test
 ```
 
-vsebuje certifikate, ki se uporabljajo pri komunikaciji s testnim okoljem FURS.
-
-Med njimi so:
-
-- FURS certifikati,
-- CA chain certifikati,
-- SIGOV certifikati,
-- root certifikati,
-- `.p12` certifikati.
-
-**V produkcijskem Git repozitoriju se zasebnih ključev in produkcijskih certifikatov ne sme objavljati.**
-
-Če so certifikati namenjeni samo lokalnemu testiranju, jih je priporočljivo upravljati ločeno in ustrezne datoteke dodati v `.gitignore`.
-
----
-
-# Cloud Foundry
-
-Aplikacija je namenjena izvajanju v SAP BTP Cloud Foundry okolju.
-
-Trenutno testno okolje uporablja:
-
-```text
-API:
-https://api.cf.eu10-004.hana.ondemand.com
-
-Space:
-BTP_test
-```
-
-Pred deployom preverimo:
+Pred deployem preverimo cilj in stanje servisov:
 
 ```bash
 cf target
-```
-
-Servisne instance lahko preverimo z:
-
-```bash
-cf services
-```
-
-Za preverjanje konkretnih servisov:
-
-```bash
 cf services | grep davcne-blagajne
 ```
 
-Pri pravilni konfiguraciji morata biti servisa v stanju:
-
-```text
-create succeeded
-```
+Pri pravilni konfiguraciji morata biti obe servisni instanci v stanju `create succeeded`.
 
 ---
 
-# Lokalni razvoj
+## Testni scenarij
 
-Za razvoj in testiranje je osnovni način zagona:
+**1. Pošlji testni račun v Event Mesh** — objavi sporočilo na `itelis/fiscal/test/invoice/created` (glej primer zgoraj).
 
-```bash
-cds bind --exec -- cds watch --profile hybrid
-```
+**2. CAP aplikacija obdela račun** — subscriber prejme sporočilo, sproži fiskalizacijo, podatki se shranijo v HANA Cloud, nato se izvede komunikacija s FURS.
 
-`hybrid` profil omogoča uporabo dejanskih Cloud Foundry servisov, na katere je projekt vezan.
+**3. Preberi rezultat** — po uspešni fiskalizaciji se rezultat objavi na rezultatni Event Mesh queue in ga lahko preveriš na tri načine:
 
-Pri pravilni konfiguraciji se ob zagonu izpiše povezava na:
+- v **SAP Event Mesh** cockpitu (Test → Consume Messages),
+- v **SAP HANA Database Explorer**,
+- v logih CAP aplikacije.
 
-```text
-db > hana
-```
-
-in podatki o uporabljenem HDI containerju.
-
-Za Event Mesh mora biti poleg baze pravilno vzpostavljen tudi messaging binding.
-
----
-
-# Testni scenarij
-
-Celoten testni scenarij je sestavljen iz treh glavnih delov:
-
-### 1. Pošlji testni račun v Event Mesh
-
-V SAP Event Mesh se objavi sporočilo na:
-
-```text
-itelis/fiscal/test/invoice/created
-```
-
-Primer:
-
-```json
-{
-  "invoiceId": "25",
-  "taxNumber": "10698655",
-  "amount": 250.75,
-  "timestamp": "2026-09-07T12:00:00",
-  "premiseId": "POS1",
-  "deviceId": "DEV1"
-}
-```
-
-### 2. CAP aplikacija obdela račun
-
-Subscriber prejme sporočilo in sproži fiskalizacijo.
-
-Podatki se shranijo v SAP HANA Cloud, nato se izvede komunikacija s FURS.
-
-### 3. Preberi rezultat
-
-Po uspešni fiskalizaciji se rezultat objavi na rezultatni Event Mesh queue.
-
-Primer:
-
-```json
-{
-  "data": {
-    "invoiceId": "25",
-    "status": "CONFIRMED",
-    "zoi": "6557229d3af1a54ddbe79074e8478ec6",
-    "eor": "99996046-8c65-41dc-9403-f6c3def4384d",
-    "premiseid": "POS1",
-    "deviceid": "DEV1",
-    "amount": 250.75,
-    "timestamp": "2026-09-08T10:23:23.934Z"
-  }
-}
-```
-
-Rezultat lahko preverimo v:
-
-- SAP Event Mesh,
-- SAP HANA Database Explorer,
-- CAP aplikaciji oziroma logih.
-
----
-
-# Preverjanje podatkov v SAP HANA Database Explorer
-
-Po uspešni obdelavi računa se lahko na SAP HANA Cloud povežemo preko **SAP HANA Database Explorer**.
-
-Podatke lahko preverimo v tabelah:
-
-```text
-FISC_INVOICE
-FISC_RESPONSE
-FISC_ERRORLOG
-```
-
-Primer:
+### Preverjanje podatkov v HANA Database Explorer
 
 ```sql
-SELECT *
-FROM "FISC_INVOICE"
-ORDER BY "CREATEDAT" DESC;
+SELECT * FROM "FISC_INVOICE" ORDER BY "CREATEDAT" DESC;
+SELECT * FROM "FISC_RESPONSE" ORDER BY "CREATEDAT" DESC;
 ```
 
-in:
-
-```sql
-SELECT *
-FROM "FISC_RESPONSE"
-ORDER BY "CREATEDAT" DESC;
-```
-
-Pri uspešni fiskalizaciji mora biti v podatkih mogoče najti rezultat fiskalizacije, vključno z ZOI in EOR.
+Pri uspešni fiskalizaciji mora biti v podatkih viden rezultat, vključno z ZOI in EOR.
 
 ---
 
-# Tehnologije
+## Tehnologije
 
-Projekt uporablja:
-
-- **SAP CAP**
-- **Node.js**
-- **SAP HANA Cloud**
-- **SAP HDI Container**
-- **SAP Event Mesh**
-- **SAP BTP Cloud Foundry**
-- **FURS fiskalizacijski sistem**
-- **JWS**
-- **X.509 certifikate**
-- **Cloud Foundry service bindings**
+SAP CAP · Node.js · SAP HANA Cloud · SAP HDI Container · SAP Event Mesh · SAP BTP Cloud Foundry · FURS fiskalizacijski sistem · JWS · X.509 certifikati · Cloud Foundry service bindings
 
 ---
 
-# Status projekta
+## Status projekta
 
 Trenutna implementacija omogoča:
 
-- sprejem računov preko SAP Event Mesh,
-- obdelavo računov v CAP aplikaciji,
-- povezavo s SAP HANA Cloud,
-- trajno shranjevanje računov,
-- fiskalizacijo pri FURS,
-- shranjevanje rezultata fiskalizacije,
-- shranjevanje ZOI in EOR,
-- objavo rezultata nazaj v SAP Event Mesh,
-- preverjanje rezultatov preko Event Mesh in HANA Database Explorer.
+- [x] sprejem računov preko SAP Event Mesh
+- [x] obdelavo računov v CAP aplikaciji
+- [x] povezavo s SAP HANA Cloud in trajno shranjevanje računov
+- [x] fiskalizacijo pri FURS
+- [x] shranjevanje rezultata fiskalizacije (ZOI, EOR)
+- [x] objavo rezultata nazaj v SAP Event Mesh
+- [x] preverjanje rezultatov preko Event Mesh in HANA Database Explorer
 
-Podrobna navodila za namestitev, konfiguracijo servisov, pripravo testnega Event Mesh sporočila in izvedbo celotnega testnega scenarija so lahko dodana v naslednjih poglavjih.
+Podrobna navodila za namestitev, konfiguracijo servisov in izvedbo celotnega testnega scenarija je mogoče dodati v naslednjih poglavjih.
