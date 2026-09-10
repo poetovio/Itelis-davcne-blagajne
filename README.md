@@ -230,10 +230,10 @@ cds bind -2 event_mesh --for messaging --kind enterprise-messaging-amqp
 cds bind -2 event_mesh --for fiscalization-results --kind enterprise-messaging-amqp
 ```
 
-### Zagon v hybrid načinu
+### Zagon v hybrid načinu ter vseh dodatnih profilih
 
 ```bash
-cds bind --exec -- cds watch --profile hybrid
+cds bind --exec -- cds watch --profile hybrid,messaging,fiscalization-results
 ```
 
 S tem aplikacija uporablja Cloud Foundry service bindings namesto ročno vnesenih credentials. Ob uspešnem zagonu se izpiše povezava `db > hana` s podatki o uporabljenem HDI containerju; za Event Mesh mora biti poleg baze pravilno vzpostavljena tudi messaging vezava.
