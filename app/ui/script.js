@@ -63,10 +63,12 @@ let currentResult = null;
 invoiceIdInput.value =
   String(Date.now()).slice(-6);
 
+
 function setStatus(kind, text) {
   statusDot.className = "dot " + kind;
   statusText.textContent = text;
 }
+
 
 function formatEur(value) {
   const number = Number(value);
@@ -81,6 +83,7 @@ function formatEur(value) {
   }) + " €";
 }
 
+
 function formatNumber(value) {
   const number = Number(value);
 
@@ -93,6 +96,7 @@ function formatNumber(value) {
     maximumFractionDigits: 2
   });
 }
+
 
 function formatDate(value) {
   if (!value) {
@@ -110,6 +114,7 @@ function formatDate(value) {
     timeStyle: "short"
   });
 }
+
 
 function showReceipt(data) {
   currentResult = {
@@ -169,8 +174,11 @@ function showReceipt(data) {
   downloadNote.style.display = "block";
 }
 
+
 async function pollStatus(invoiceId, attempt = 0) {
+
   if (attempt > 25) {
+
     setStatus(
       "error",
       "Ni odgovora — preveri Event Mesh in loge aplikacije."
@@ -182,6 +190,7 @@ async function pollStatus(invoiceId, attempt = 0) {
   }
 
   try {
+
     const response =
       await fetch(
         "/ui/api/status/" +
@@ -192,6 +201,7 @@ async function pollStatus(invoiceId, attempt = 0) {
       await response.json();
 
     if (data.Status === "CONFIRMED") {
+
       setStatus(
         "confirmed",
         "Fiskalizacija potrjena"
@@ -211,6 +221,7 @@ async function pollStatus(invoiceId, attempt = 0) {
     }
 
     if (data.Status === "ERROR") {
+
       setStatus(
         "error",
         "Fiskalizacija je vrnila napako"
@@ -230,6 +241,7 @@ async function pollStatus(invoiceId, attempt = 0) {
     }
 
   } catch (error) {
+
     console.warn(
       "Napaka pri preverjanju statusa:",
       error
@@ -246,6 +258,7 @@ async function pollStatus(invoiceId, attempt = 0) {
       1200
     );
 }
+
 
 submitBtn.addEventListener(
   "click",
@@ -266,6 +279,7 @@ submitBtn.addEventListener(
     );
 
     const payload = {
+
       invoiceId:
         invoiceIdInput.value.trim(),
 
@@ -335,6 +349,7 @@ submitBtn.addEventListener(
         );
 
       if (!response.ok) {
+
         throw new Error(
           "Napaka pri pošiljanju računa."
         );
@@ -363,6 +378,7 @@ submitBtn.addEventListener(
   }
 );
 
+
 const FONT_REGULAR_URL =
   "https://cdn.jsdelivr.net/gh/googlefonts/noto-fonts@main/hinted/ttf/NotoSans/NotoSans-Regular.ttf";
 
@@ -371,12 +387,14 @@ const FONT_BOLD_URL =
 
 let pdfFonts = null;
 
+
 async function fetchFontAsBase64(url) {
 
   const response =
     await fetch(url);
 
   if (!response.ok) {
+
     throw new Error(
       "Ni mogoče naložiti PDF pisave."
     );
@@ -414,6 +432,7 @@ async function fetchFontAsBase64(url) {
   return btoa(binary);
 }
 
+
 async function loadPdfFonts() {
 
   if (pdfFonts) {
@@ -439,12 +458,14 @@ async function loadPdfFonts() {
   return pdfFonts;
 }
 
+
 async function loadLogo() {
 
   const response =
-    await fetch("./itelis.jpg");
+    await fetch("./itelis_logo.png");
 
   if (!response.ok) {
+
     throw new Error(
       "ITELIS logotipa ni bilo mogoče naložiti."
     );
@@ -460,17 +481,21 @@ async function loadLogo() {
         new FileReader();
 
       reader.onload =
-        () => resolve(
-          reader.result
-        );
+        () =>
+          resolve(
+            reader.result
+          );
 
       reader.onerror =
         reject;
 
-      reader.readAsDataURL(blob);
+      reader.readAsDataURL(
+        blob
+      );
     }
   );
 }
+
 
 async function getImageDimensions(dataUrl) {
 
@@ -505,6 +530,7 @@ async function getImageDimensions(dataUrl) {
     }
   );
 }
+
 
 function pdfText(
   doc,
@@ -543,6 +569,7 @@ function pdfText(
   );
 }
 
+
 function pdfLine(
   doc,
   x1,
@@ -568,6 +595,7 @@ function pdfLine(
     y2
   );
 }
+
 
 async function createInvoicePdf() {
 
@@ -666,6 +694,7 @@ async function createInvoicePdf() {
     const vat =
       amount - net;
 
+
     pdfText(
       doc,
       "ITELIS d.o.o.",
@@ -711,6 +740,7 @@ async function createInvoicePdf() {
       48
     );
 
+
     try {
 
       const logo =
@@ -721,39 +751,27 @@ async function createInvoicePdf() {
           logo
         );
 
-      const desiredWidth =
+      const maxWidth =
         48;
-
-      const originalRatio =
-        dimensions.height /
-        dimensions.width;
-
-      let logoWidth =
-        desiredWidth;
-
-      let logoHeight =
-        logoWidth *
-        originalRatio;
 
       const maxHeight =
         22;
 
-      if (
-        logoHeight >
-        maxHeight
-      ) {
+      const ratio =
+        Math.min(
+          maxWidth / dimensions.width,
+          maxHeight / dimensions.height
+        );
 
-        logoHeight =
-          maxHeight;
+      const logoWidth =
+        dimensions.width * ratio;
 
-        logoWidth =
-          logoHeight /
-          originalRatio;
-      }
+      const logoHeight =
+        dimensions.height * ratio;
 
       doc.addImage(
         logo,
-        "JPEG",
+        "PNG",
         right - logoWidth,
         16,
         logoWidth,
@@ -768,6 +786,7 @@ async function createInvoicePdf() {
       );
     }
 
+
     pdfLine(
       doc,
       margin,
@@ -775,6 +794,7 @@ async function createInvoicePdf() {
       right,
       56
     );
+
 
     pdfText(
       doc,
@@ -795,11 +815,13 @@ async function createInvoicePdf() {
       true
     );
 
+
     const metaX =
       126;
 
     const metaValueX =
-      161;
+      190;
+
 
     pdfText(
       doc,
@@ -814,8 +836,12 @@ async function createInvoicePdf() {
       doc,
       "Ljubljana",
       metaValueX,
-      67
+      67,
+      10,
+      false,
+      "right"
     );
+
 
     pdfText(
       doc,
@@ -832,8 +858,12 @@ async function createInvoicePdf() {
         currentPayload.timestamp
       ),
       metaValueX,
-      73
+      73,
+      10,
+      false,
+      "right"
     );
+
 
     pdfText(
       doc,
@@ -848,8 +878,12 @@ async function createInvoicePdf() {
       doc,
       currentPayload.premiseId,
       metaValueX,
-      79
+      79,
+      10,
+      false,
+      "right"
     );
+
 
     pdfText(
       doc,
@@ -864,8 +898,12 @@ async function createInvoicePdf() {
       doc,
       currentPayload.deviceId,
       metaValueX,
-      85
+      85,
+      10,
+      false,
+      "right"
     );
+
 
     pdfText(
       doc,
@@ -903,6 +941,7 @@ async function createInvoicePdf() {
       margin,
       122
     );
+
 
     pdfText(
       doc,
@@ -949,6 +988,7 @@ async function createInvoicePdf() {
       127
     );
 
+
     const tableTop =
       139;
 
@@ -957,6 +997,7 @@ async function createInvoicePdf() {
 
     const colPrice =
       159;
+
 
     doc.setFillColor(
       239,
@@ -971,6 +1012,7 @@ async function createInvoicePdf() {
       9,
       "F"
     );
+
 
     pdfText(
       doc,
@@ -1011,6 +1053,7 @@ async function createInvoicePdf() {
       "right"
     );
 
+
     pdfLine(
       doc,
       margin,
@@ -1018,6 +1061,7 @@ async function createInvoicePdf() {
       right,
       tableTop + 3
     );
+
 
     pdfText(
       doc,
@@ -1057,6 +1101,7 @@ async function createInvoicePdf() {
       "right"
     );
 
+
     pdfLine(
       doc,
       margin,
@@ -1065,11 +1110,13 @@ async function createInvoicePdf() {
       tableTop + 17
     );
 
+
     const summaryX =
       124;
 
     let y =
       168;
+
 
     pdfText(
       doc,
@@ -1090,7 +1137,9 @@ async function createInvoicePdf() {
       "right"
     );
 
+
     y += 7;
+
 
     pdfText(
       doc,
@@ -1109,6 +1158,7 @@ async function createInvoicePdf() {
       "right"
     );
 
+
     pdfLine(
       doc,
       summaryX,
@@ -1117,7 +1167,9 @@ async function createInvoicePdf() {
       y + 4
     );
 
+
     y += 13;
+
 
     pdfText(
       doc,
@@ -1138,7 +1190,9 @@ async function createInvoicePdf() {
       "right"
     );
 
+
     y += 18;
+
 
     pdfLine(
       doc,
@@ -1147,6 +1201,7 @@ async function createInvoicePdf() {
       right,
       y - 5
     );
+
 
     pdfText(
       doc,
@@ -1179,8 +1234,10 @@ async function createInvoicePdf() {
       y + 21
     );
 
+
     const fiscalTop =
       y + 34;
+
 
     doc.setFillColor(
       250,
@@ -1194,6 +1251,7 @@ async function createInvoicePdf() {
       150
     );
 
+
     doc.rect(
       margin,
       fiscalTop,
@@ -1201,6 +1259,7 @@ async function createInvoicePdf() {
       38,
       "FD"
     );
+
 
     pdfText(
       doc,
@@ -1210,6 +1269,7 @@ async function createInvoicePdf() {
       11,
       true
     );
+
 
     pdfText(
       doc,
@@ -1228,6 +1288,7 @@ async function createInvoicePdf() {
       10,
       true
     );
+
 
     pdfText(
       doc,
@@ -1249,6 +1310,7 @@ async function createInvoicePdf() {
       137
     );
 
+
     pdfText(
       doc,
       "EOR:",
@@ -1269,6 +1331,7 @@ async function createInvoicePdf() {
       137
     );
 
+
     pdfLine(
       doc,
       margin,
@@ -1276,6 +1339,7 @@ async function createInvoicePdf() {
       right,
       270
     );
+
 
     pdfText(
       doc,
@@ -1287,6 +1351,7 @@ async function createInvoicePdf() {
       "center"
     );
 
+
     pdfText(
       doc,
       "Račun je bil davčno potrjen v skladu z ZDavPR.",
@@ -1296,6 +1361,7 @@ async function createInvoicePdf() {
       false,
       "center"
     );
+
 
     pdfText(
       doc,
@@ -1307,6 +1373,7 @@ async function createInvoicePdf() {
       "center"
     );
 
+
     doc.save(
       "racun-" +
       (
@@ -1315,6 +1382,7 @@ async function createInvoicePdf() {
       ) +
       ".pdf"
     );
+
 
   } catch (error) {
 

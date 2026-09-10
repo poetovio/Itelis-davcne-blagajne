@@ -6,127 +6,442 @@
   <title>Davčne blagajne — testno okolje</title>
   <link rel="stylesheet" href="./style.css">
 </head>
+
 <body>
+
 <main>
+
   <p class="eyebrow">Itelis · davčne blagajne</p>
+
   <h1>Testni prikaz fiskalizacije</h1>
 
   <div class="layout">
+
     <section>
+
       <div class="card">
-        <div class="card-title">Podatki računa</div>
+
+        <div class="card-title">
+          Podatki računa
+        </div>
 
         <div class="field">
-          <label for="invoiceId">Št. računa</label>
-          <input id="invoiceId" type="text">
+
+          <label for="invoiceId">
+            Št. računa
+          </label>
+
+          <input
+            id="invoiceId"
+            type="text"
+          >
+
         </div>
+
 
         <div class="row">
+
           <div class="field">
-            <label for="taxNumber">Davčna številka</label>
-            <input id="taxNumber" type="text" value="10698655">
+
+            <label for="taxNumber">
+              Davčna številka
+            </label>
+
+            <input
+              id="taxNumber"
+              type="text"
+              value="10698655"
+            >
+
           </div>
+
+
           <div class="field">
-            <label for="amount">Znesek (EUR)</label>
-            <input id="amount" type="text" value="250.75">
+
+            <label for="amount">
+              Znesek (EUR)
+            </label>
+
+            <input
+              id="amount"
+              type="text"
+              value="250.75"
+            >
+
           </div>
+
         </div>
+
 
         <div class="row">
+
           <div class="field">
-            <label for="premiseId">Poslovni prostor</label>
-            <input id="premiseId" type="text" value="POS1">
+
+            <label for="premiseId">
+              Poslovni prostor
+            </label>
+
+            <input
+              id="premiseId"
+              type="text"
+              value="POS1"
+            >
+
           </div>
+
+
           <div class="field">
-            <label for="deviceId">Elektronska naprava</label>
-            <input id="deviceId" type="text" value="DEV1">
+
+            <label for="deviceId">
+              Elektronska naprava
+            </label>
+
+            <input
+              id="deviceId"
+              type="text"
+              value="DEV1"
+            >
+
           </div>
+
         </div>
 
-        <button id="submitBtn" type="button">Pošlji račun preko Event Mesh</button>
+
+        <button
+          id="submitBtn"
+          type="button"
+        >
+          Pošlji račun preko Event Mesh
+        </button>
+
       </div>
 
-      <div class="card" id="result">
+
+      <div
+        class="card"
+        id="result"
+      >
+
         <div class="status-line">
-          <span class="dot" id="statusDot"></span>
-          <span id="statusText">Čakam na odgovor …</span>
+
+          <span
+            class="dot"
+            id="statusDot"
+          ></span>
+
+          <span id="statusText">
+            Čakam na odgovor …
+          </span>
+
         </div>
-        <div class="kv"><span class="k">Št. računa</span><span class="v" id="outInvoiceId">—</span></div>
-        <div class="kv"><span class="k">ZOI</span><span class="v" id="outZoi">—</span></div>
-        <div class="kv"><span class="k">EOR</span><span class="v" id="outEor">—</span></div>
+
+
+        <div class="kv">
+
+          <span class="k">
+            Št. računa
+          </span>
+
+          <span
+            class="v"
+            id="outInvoiceId"
+          >
+            —
+          </span>
+
+        </div>
+
+
+        <div class="kv">
+
+          <span class="k">
+            ZOI
+          </span>
+
+          <span
+            class="v"
+            id="outZoi"
+          >
+            —
+          </span>
+
+        </div>
+
+
+        <div class="kv">
+
+          <span class="k">
+            EOR
+          </span>
+
+          <span
+            class="v"
+            id="outEor"
+          >
+            —
+          </span>
+
+        </div>
+
       </div>
+
 
       <p class="hint">
-        Gumb objavi testni dogodek na topic <code>invoice/created</code> v SAP Event Mesh.
-        CAP aplikacija ga prejme, pokliče FURS in rezultat shrani v SAP HANA Cloud —
+
+        Gumb objavi testni dogodek na topic
+        <code>invoice/created</code>
+        v SAP Event Mesh.
+
+        CAP aplikacija ga prejme, pokliče FURS
+        in rezultat shrani v SAP HANA Cloud —
         ta stran ga nato prebere preko servisa.
+
       </p>
 
-      <p class="docs-link"><a href="./docs.html">→ API dokumentacija te strani</a></p>
+
+      <p class="docs-link">
+
+        <a href="./docs.html">
+          → API dokumentacija te strani
+        </a>
+
+      </p>
+
     </section>
 
+
     <aside class="receipt-wrap">
-      <p class="receipt-title">Predogled računa</p>
+
+      <p class="receipt-title">
+        Predogled računa
+      </p>
+
 
       <div class="receipt">
-        <div class="receipt-placeholder" id="receiptPlaceholder">
-          Račun se bo prikazal tukaj<br>
+
+        <div
+          class="receipt-placeholder"
+          id="receiptPlaceholder"
+        >
+
+          Račun se bo prikazal tukaj
+          <br>
           po uspešni fiskalizaciji.
+
         </div>
 
-        <div class="receipt-content" id="receiptContent">
+
+        <div
+          class="receipt-content"
+          id="receiptContent"
+        >
+
           <div class="receipt-center">
-            <img src="./itelis.jpg" alt="ITELIS" class="receipt-logo">
-            <div class="receipt-sub">TESTNA DAVČNA BLAGAJNA</div>
+
+            <img
+              src="./itelis_logo.png"
+              alt="ITELIS"
+              class="receipt-logo"
+            >
+
+            <div class="receipt-sub">
+              TESTNA DAVČNA BLAGAJNA
+            </div>
+
           </div>
 
+
           <div class="receipt-rule"></div>
+
 
           <div class="receipt-meta">
-            <span>RAČUN</span><strong id="receiptInvoiceId">—</strong>
-            <span>DATUM</span><span id="receiptDate">—</span>
-            <span>POSLOVNI PROSTOR</span><span id="receiptPremise">—</span>
-            <span>ELEKTRONSKA NAPRAVA</span><span id="receiptDevice">—</span>
-            <span>DAVČNA ŠT.</span><span id="receiptTaxNumber">—</span>
+
+            <span>
+              RAČUN
+            </span>
+
+            <strong id="receiptInvoiceId">
+              —
+            </strong>
+
+
+            <span>
+              DATUM
+            </span>
+
+            <span id="receiptDate">
+              —
+            </span>
+
+
+            <span>
+              POSLOVNI PROSTOR
+            </span>
+
+            <span id="receiptPremise">
+              —
+            </span>
+
+
+            <span>
+              ELEKTRONSKA NAPRAVA
+            </span>
+
+            <span id="receiptDevice">
+              —
+            </span>
+
+
+            <span>
+              DAVČNA ŠT.
+            </span>
+
+            <span id="receiptTaxNumber">
+              —
+            </span>
+
           </div>
 
+
           <div class="receipt-rule"></div>
+
 
           <div class="receipt-items">
+
             <div class="receipt-item">
-              <div>BLAGO / STORITEV<small>Testni račun</small></div>
-              <span id="receiptAmount">0,00 €</span>
+
+              <div>
+
+                BLAGO / STORITEV
+
+                <small>
+                  Testni račun
+                </small>
+
+              </div>
+
+              <span id="receiptAmount">
+                0,00 €
+              </span>
+
             </div>
+
           </div>
+
 
           <div class="receipt-rule"></div>
 
-          <div class="receipt-tax"><span>DDV 22 %</span><span id="receiptVat">0,00 €</span></div>
-          <div class="receipt-total"><span>SKUPAJ</span><span id="receiptTotal">0,00 €</span></div>
+
+          <div class="receipt-tax">
+
+            <span>
+              DDV 22 %
+            </span>
+
+            <span id="receiptVat">
+              0,00 €
+            </span>
+
+          </div>
+
+
+          <div class="receipt-total">
+
+            <span>
+              SKUPAJ
+            </span>
+
+            <span id="receiptTotal">
+              0,00 €
+            </span>
+
+          </div>
+
 
           <div class="fiscal-box">
-            <strong>DAVČNO POTRJEN RAČUN</strong><br>
-            STATUS: <span id="receiptStatus">—</span><br>
-            ZOI:<div class="receipt-code" id="receiptZoi">—</div>
-            EOR:<div class="receipt-code" id="receiptEor">—</div>
+
+            <strong>
+              DAVČNO POTRJEN RAČUN
+            </strong>
+
+            <br>
+
+            STATUS:
+
+            <span id="receiptStatus">
+              —
+            </span>
+
+            <br>
+
+            ZOI:
+
+            <div
+              class="receipt-code"
+              id="receiptZoi"
+            >
+              —
+            </div>
+
+
+            EOR:
+
+            <div
+              class="receipt-code"
+              id="receiptEor"
+            >
+              —
+            </div>
+
           </div>
+
 
           <div class="receipt-footer">
-            Hvala za nakup<br>
-            <span class="receipt-status" id="receiptStatusBadge">FISKALIZACIJA</span>
+
+            Hvala za nakup
+
+            <br>
+
+            <span
+              class="receipt-status"
+              id="receiptStatusBadge"
+            >
+              FISKALIZACIJA
+            </span>
+
           </div>
+
         </div>
+
       </div>
 
-      <button id="downloadPdfBtn" class="download-pdf" type="button">
+
+      <button
+        id="downloadPdfBtn"
+        class="download-pdf"
+        type="button"
+      >
         ↓ Prenesi račun kot PDF
       </button>
-      <p class="download-note" id="downloadNote">PDF je oblikovan kot običajen poslovni račun.</p>
+
+
+      <p
+        class="download-note"
+        id="downloadNote"
+      >
+        PDF je oblikovan kot običajen poslovni račun.
+      </p>
+
     </aside>
+
   </div>
+
 </main>
 
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <script src="./script.js"></script>
+
 </body>
 </html>
